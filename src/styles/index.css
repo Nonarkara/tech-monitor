@@ -51,6 +51,18 @@ body {
   z-index: 1;
 }
 
+/* --- Map Background (Desktop) / Inline (Mobile) --- */
+.map-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: auto;
+  /* Re-enable clicks lost from app-container */
+}
+
 /* V3 Command Center Overlay Grid */
 .app-container {
   position: absolute;
@@ -696,14 +708,6 @@ body {
     /* Space for region selector */
   }
 
-  /* Make map wrapper relative so it scrolls inline or use fixed map behind */
-  .map-wrapper {
-    position: fixed;
-    /* Keep map background fixed */
-    height: 100vh;
-    z-index: 0;
-  }
-
   /* Override desktop heights and overflow so they expand natively */
   .grid-panel,
   .bottom-card {
@@ -735,22 +739,51 @@ body {
     grid-row: auto;
   }
 
-  /* Keep left and right sidebars visible, but avoid overlap */
-  .left-sidebar {
+  /* Mobile element ordering */
+  .top-bar-clock {
+    order: 0;
+    margin-bottom: 16px;
+    position: relative;
+    width: 100%;
+  }
+
+  .header-bar {
     order: 1;
-    /* Under header */
+  }
+
+  .map-wrapper {
+    position: relative;
+    height: 35vh;
+    /* Map takes ~1/3 of screen */
+    width: 100%;
+    order: 2;
+    z-index: 10;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin-bottom: 16px;
+    flex-shrink: 0;
+    pointer-events: auto;
+  }
+
+  .news-ticker-wrapper {
+    order: 3;
+    position: relative;
+    width: 100%;
+    margin-bottom: 16px;
+  }
+
+  .left-sidebar {
+    order: 4;
   }
 
   .right-sidebar {
-    order: 2;
-    /* Middle panels */
+    order: 5;
   }
 
   .bottom-bar {
-    order: 3;
+    order: 6;
     display: flex;
     flex-direction: column;
-    /* Stack the 3 bottom cards */
   }
 
   /* Region selector to be more accessible on mobile */

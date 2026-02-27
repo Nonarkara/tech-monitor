@@ -60,13 +60,14 @@ function App() {
 
   return (
     <>
-      <MapContainer
-        viewState={viewState}
-        onMove={setViewState}
-        activeLayers={activeLayers}
-        onMarkerClick={setSelectedEvent}
-      />
+
       <div className="app-container">
+        <MapContainer
+          viewState={viewState}
+          onMove={setViewState}
+          activeLayers={activeLayers}
+          onMarkerClick={setSelectedEvent}
+        />
 
         {/* Top Header Placeholder */}
         <div className="header-bar grid-panel" style={{ background: 'var(--surface-color)', padding: '0 24px' }}>
