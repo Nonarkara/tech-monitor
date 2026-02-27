@@ -1,0 +1,90 @@
+import React from 'react';
+import { X, ExternalLink, Calendar, MapPin } from 'lucide-react';
+
+const EventDetailsPanel = ({ event, onClose }) => {
+    if (!event) return null;
+
+    const { properties } = event;
+
+    // Format dates nicely if available
+    const formattedDate = properties.date
+        ? new Date(properties.date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+        : 'Ongoing / Real-time';
+
+    // Determine Category CSS
+    let catClass = 'cat-economy';
+    let catLabel = 'Insight';
+
+    if (properties.type === 'disaster') {
+        catClass = 'cat-disaster';
+        catLabel = properties.category || 'Natural Disaster';
+    } else if (properties.type === 'conflict') {
+        catClass = 'cat-conflict';
+        catLabel = properties.types || 'Humanitarian Crisis';
+    } else if (properties.type === 'weather') {
+        catClass = 'cat-economy'; // Blue theme
+        catLabel = 'Weather Alert';
+    } else if (properties.type === 'aqi') {
+        catClass = 'cat-economy';
+        catLabel = 'Air Quality';
+    }
+
+    return (
+        <div className="grid-panel" style={{ padding: '24px', position: 'relative' }}>
+            <button className="details-close-btn" onClick={onClose} aria-label="Close details" style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--text-muted)', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer' }}>
+                <X size={18} />
+            </button>
+
+            <div>
+                <span className={`details-category ${catClass}`}>
+                    {catLabel}
+                </span>
+            </div>
+
+            <h2 className="details-title">{properties.title || properties.city || properties.country}</h2>
+
+            <div className="details-meta">
+                {properties.country && (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <MapPin size={14} /> {properties.country}
+                    </span>
+                )}
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Calendar size={14} /> {formattedDate}
+                </span>
+            </div>
+
+            <div className="details-desc">
+                {/* Render dynamic attributes based on the exact event payload */}
+                {properties.type === 'economy' && (
+                    <p>
+                        <strong>GDP Growth:</strong> {properties.growth.toFixed(2)}%<br />
+                        Currently tracking below macroscopic trend lines for the region, requiring careful fiscal policy observation.
+                    </p>
+                )}
+                {properties.type === 'weather' && (
+                    <p>
+                        <strong>Current Temp:</strong> {properties.temp}°C<br />
+                        Live weather metrics tracking for urban density centers. High temperatures can correlate to increased infrastructure power draw.
+                    </p>
+                )}
+                {properties.type === 'aqi' && (
+                    <p>
+                        <strong>PM2.5 Level:</strong> {properties.pm25} µg/m³<br />
+                        <strong>US AQI:</strong> {properties.aqi} ({properties.category})<br /><br />
+                        Live environmental scanning over Southeast Asian metro hubs. Air quality metrics are a critical proxy for industrial output and civic health.
+                    </p>
+                )}
+                {(properties.type === 'disaster' || properties.type === 'conflict') && (
+                    <p>
+                        This is an active geo-tagged event reported via global monitoring agencies.
+                        High priority tracking is enabled for regional security and humanitarian resource allocation.
+                    </p>
+                )}
+            </div>
+
+        </div>
+    );
+};
+
+export default EventDetailsPanel;

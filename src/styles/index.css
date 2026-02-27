@@ -1,0 +1,770 @@
+:root {
+  --bg-dark: #050E20;
+  /* Dark variant of DEPA Navy */
+  --bg-panel: rgba(8, 30, 72, 0.85);
+  /* DEPA Navy Glass */
+  --bg-blur: blur(12px);
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --accent-blue: #FFC400;
+  /* DEPA Yellow for main accents */
+  --accent-green: #10b981;
+  --accent-red: #ef4444;
+  --accent-amber: #f59e0b;
+  --border-color: rgba(255, 255, 255, 0.1);
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-full: 9999px;
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Base Map wrapper takes up full screen underneath everything */
+.map-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1;
+}
+
+/* V3 Command Center Overlay Grid */
+.app-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  display: grid;
+  grid-template-columns: 320px 1fr 340px;
+  /* Left Sidebar, Center Map space, Right Sidebar */
+  grid-template-rows: 80px 70px 1fr auto;
+  /* Top Bar Clock, Top Navbar, Center Space, Bottom Panels/Ticker */
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  position: relative;
+  padding: 16px 16px 36px 16px;
+  /* Added bottom padding for spacing */
+  box-sizing: border-box;
+  z-index: 10;
+  pointer-events: none;
+  /* Let clicks pass through grid to map */
+  gap: 16px;
+}
+
+/* Add a clean copyright footer below the grid */
+.app-container::after {
+  content: "© depa 2026. All rights reserved.";
+  position: absolute;
+  bottom: 12px;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+/* Any grid panel should re-enable pointer events so it's clickable */
+.grid-panel {
+  pointer-events: auto;
+  border: 1px solid var(--border-color);
+  background: var(--surface-translucent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 24px var(--shadow-color);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Specific Grid Placements */
+.header-bar {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  border-radius: var(--radius-sm);
+}
+
+.left-sidebar {
+  grid-column: 1;
+  grid-row: 3 / -1;
+  /* spans to bottom */
+  gap: 12px;
+}
+
+.right-sidebar {
+  grid-column: 3;
+  grid-row: 3;
+  gap: 12px;
+}
+
+.bottom-bar {
+  grid-column: 2 / -1;
+  /* Spans from right of left-sidebar to the end */
+  grid-row: 4;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  /* 3 data cards at bottom */
+  gap: 16px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.bottom-card {
+  pointer-events: auto;
+  border: 1px solid var(--border-color);
+  background: var(--surface-translucent);
+  backdrop-filter: blur(12px);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+}
+
+/* Glassmorphism Panel Base */
+.glass-panel {
+  background: var(--bg-panel);
+  backdrop-filter: var(--bg-blur);
+  -webkit-backdrop-filter: var(--bg-blur);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* Sidebar */
+/* The old .sidebar rule is replaced by .left-sidebar and .right-sidebar in the new grid system */
+
+.sidebar-header {
+  padding: 24px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.brand-icon {
+  color: var(--accent-blue);
+}
+
+/* Typography and Utility Classes for Panels */
+.panel-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panel-content {
+  padding: 12px 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.sidebar-content {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-height: 0;
+}
+
+/* Section Title */
+.section-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+/* Layer Toggle Buttons */
+.layer-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.layer-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.layer-card.active {
+  background: rgba(255, 196, 0, 0.1);
+  border-color: rgba(255, 196, 0, 0.3);
+}
+
+.layer-card.active .layer-icon-wrapper {
+  background: var(--accent-yellow);
+  color: var(--bg-dark);
+}
+
+.layer-card.active:nth-child(2) .layer-icon-wrapper {
+  background: var(--accent-red);
+}
+
+.layer-card.active:nth-child(3) .layer-icon-wrapper {
+  background: var(--accent-amber);
+}
+
+.layer-card.active:nth-child(4) .layer-icon-wrapper {
+  background: var(--accent-green);
+}
+
+.layer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.layer-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.layer-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* --- V2 Map Controls (Restyled for Grid) --- */
+.region-selector {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  padding: 6px;
+  z-index: 30;
+  /* Above bottom panels */
+  box-shadow: 0 4px 12px var(--shadow-color);
+  pointer-events: auto;
+}
+
+.region-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 10px 20px;
+  border-radius: var(--radius-full);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.region-btn:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.region-btn.active {
+  background: var(--text-main);
+  color: var(--bg-dark);
+  font-weight: 600;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* --- V2: Animations & Interactive Visuals --- */
+
+@keyframes radar-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+
+  50% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(3);
+    opacity: 0;
+  }
+}
+
+@keyframes flash-dot {
+
+  0%,
+  100% {
+    opacity: 0.8;
+  }
+
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 10px currentColor;
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in-top {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in-bottom {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes scroll-left {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* HTML Marker Overlays */
+.pulse-marker {
+  position: relative;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  cursor: pointer;
+  z-index: 10;
+  animation: flash-dot 2s infinite ease-in-out;
+  /* Use the inline color style passed from the component or a fallback */
+  background-color: var(--marker-color, currentColor);
+}
+
+.pulse-marker::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border-radius: 50%;
+  border: 1px solid var(--marker-color, currentColor);
+  animation: radar-pulse 2.5s infinite ease-out;
+  pointer-events: none;
+}
+
+.marker-disaster {
+  background-color: var(--accent-amber);
+  color: var(--accent-amber);
+}
+
+.marker-conflict {
+  background-color: var(--accent-red);
+  color: var(--accent-red);
+  width: 14px;
+  height: 14px;
+}
+
+/* Event Details Panel */
+.details-panel {
+  position: absolute;
+  right: 24px;
+  top: 100px;
+  width: 360px;
+  max-width: 90vw;
+  z-index: 20;
+  padding: 24px;
+  border-radius: var(--radius-lg);
+  animation: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.details-panel .close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: var(--text-muted);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.details-panel .close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.details-category {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+}
+
+.cat-conflict {
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--accent-red);
+}
+
+.cat-disaster {
+  background: rgba(245, 158, 11, 0.2);
+  color: var(--accent-amber);
+}
+
+.cat-economy {
+  background: rgba(59, 130, 246, 0.2);
+  color: var(--accent-blue);
+}
+
+.details-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.details-meta {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.details-desc {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--text-main);
+  opacity: 0.9;
+  border-top: 1px solid var(--border-color);
+  padding-top: 16px;
+}
+
+/* Ticker (Now part of bottom-bar grid or floating) */
+.news-ticker-wrapper {
+  grid-column: 1 / -1;
+  grid-row: 4;
+  /* Below bottom panels */
+  height: 32px;
+  /* Slimmer ticker */
+  background: var(--surface-color);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  pointer-events: auto;
+}
+
+.news-badge {
+  background: transparent;
+  color: var(--accent-amber);
+  font-size: 0.7rem;
+  padding: 0 16px;
+  box-shadow: none;
+}
+
+.news-marquee-container {
+  overflow: hidden;
+  white-space: nowrap;
+  flex: 1;
+  mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+}
+
+.news-marquee {
+  display: flex;
+  width: max-content;
+  animation: scroll-left 60s linear infinite;
+}
+
+.news-marquee:hover {
+  animation-play-state: paused;
+}
+
+.news-item {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 48px;
+  text-decoration: none;
+  color: var(--text-muted);
+  transition: var(--transition);
+  font-size: 0.9rem;
+}
+
+.news-item:hover {
+  color: var(--text-main);
+}
+
+.news-item .source {
+  font-weight: 600;
+  margin-right: 8px;
+  color: var(--text-main);
+}
+
+/* --- World Clock Top Bar Styling --- */
+.top-bar-clock {
+  grid-column: 1 / -1;
+  /* Span entire top row */
+  grid-row: 1;
+  /* Replace header bar space if needed, or sit right below it */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 24px;
+  background: transparent;
+  color: var(--text-main);
+  z-index: 20;
+}
+
+.secondary-clocks-side {
+  display: flex;
+  gap: 16px;
+  flex: 1;
+}
+
+.secondary-clocks-side.left-side {
+  justify-content: flex-start;
+}
+
+.secondary-clocks-side.right-side {
+  justify-content: flex-end;
+}
+
+.secondary-clock-h {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.clock-city-small {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.clock-time-small {
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.primary-clock-center {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  margin: 0 32px;
+}
+
+.primary-clock-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.primary-clock-content .clock-city {
+  font-size: 0.8rem;
+  color: var(--accent-blue);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.primary-clock-content .clock-time-large {
+  font-size: 2.5rem;
+  font-weight: 300;
+  line-height: 1;
+  text-shadow: 0 2px 10px rgba(59, 130, 246, 0.4);
+}
+
+.primary-clock-content .seconds {
+  font-size: 1.2rem;
+  color: var(--accent-green);
+}
+
+
+/* --- Mobile Responsiveness --- */
+@media (max-width: 1024px) {
+  .app-container {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    pointer-events: auto;
+    /* Allow scrolling */
+    height: 100vh;
+    padding-bottom: 80px;
+    /* Space for region selector */
+  }
+
+  /* Make map wrapper relative so it scrolls inline or use fixed map behind */
+  .map-wrapper {
+    position: fixed;
+    /* Keep map background fixed */
+    height: 100vh;
+    z-index: 0;
+  }
+
+  /* Override desktop heights and overflow so they expand natively */
+  .grid-panel,
+  .bottom-card {
+    height: auto !important;
+    min-height: min-content;
+    overflow-y: visible;
+    flex: 0 0 auto;
+  }
+
+  /* Adjust grid panels for vertical flow */
+  .header-bar,
+  .left-sidebar,
+  .right-sidebar,
+  .bottom-bar {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    margin-bottom: 16px;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    pointer-events: auto;
+  }
+
+  /* Reset grid constraints on sidebars */
+  .left-sidebar,
+  .right-sidebar {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  /* Keep left and right sidebars visible, but avoid overlap */
+  .left-sidebar {
+    order: 1;
+    /* Under header */
+  }
+
+  .right-sidebar {
+    order: 2;
+    /* Middle panels */
+  }
+
+  .bottom-bar {
+    order: 3;
+    display: flex;
+    flex-direction: column;
+    /* Stack the 3 bottom cards */
+  }
+
+  /* Region selector to be more accessible on mobile */
+  .region-selector {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    margin: 0;
+    border-radius: 0;
+    justify-content: center;
+    padding: 10px 0;
+    background: var(--bg-dark);
+    z-index: 100;
+    border-top: 1px solid var(--border-color);
+  }
+}
