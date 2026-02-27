@@ -11,17 +11,33 @@ const RegionalNewsPanel = ({ regionName, title, activeUrls }) => {
         if (regionName === 'DEPA') {
             // Social Listening via Google News RSS for DEPA
             const depaSearchUrl = 'https://news.google.com/rss/search?q="Digital+Economy+Promotion+Agency"+OR+"สำนักงานส่งเสริมเศรษฐกิจดิจิทัล"&hl=th&gl=TH&ceid=TH:th';
+            const freshUrl = depaSearchUrl + '&cb=' + Date.now();
+            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(freshUrl)}`;
 
-            fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(depaSearchUrl)}`)
+            fetch(proxyUrl)
                 .then(res => res.json())
                 .then(data => {
-                    if (data && data.items) {
-                        const newsItems = data.items.map(item => ({
-                            title: item.title,
-                            link: item.link,
-                            pubDate: new Date(item.pubDate),
-                            source: item.source?.title || 'Google News'
-                        })).slice(0, 5); // Take top 5 recent hits
+                    if (data && data.contents) {
+                        const parser = new DOMParser();
+                        const xmlDoc = parser.parseFromString(data.contents, "text/xml");
+                        const items = xmlDoc.querySelectorAll("item");
+
+                        const newsItems = [];
+                        Array.from(items).slice(0, 5).forEach(item => {
+                            const title = item.querySelector("title")?.textContent;
+                            const link = item.querySelector("link")?.textContent;
+                            const pubDateStr = item.querySelector("pubDate")?.textContent;
+                            const source = item.querySelector("source")?.textContent || 'Google News';
+
+                            if (title && link) {
+                                newsItems.push({
+                                    title,
+                                    link,
+                                    pubDate: pubDateStr ? new Date(pubDateStr) : new Date(),
+                                    source
+                                });
+                            }
+                        });
                         setNews(newsItems);
                     }
                 })

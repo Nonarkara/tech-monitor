@@ -34,26 +34,55 @@ export const fetchLiveNews = async (activeUrls = null) => {
     try {
         const urlsToFetch = activeUrls && activeUrls.length > 0 ? activeUrls : DEFAULT_URLS;
 
-        // Due to rate limits on rss2json, we slice to max 3 feeds simultaneously
+        // Due to rate limits, we slice to max 3 feeds simultaneously
         const fetchSubset = urlsToFetch.slice(0, 3);
 
-        const promises = fetchSubset.map(url =>
-            axios.get(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`)
-        );
+        const promises = fetchSubset.map(async (url) => {
+            // Add cache buster to the original RSS URL so the remote origin knows it's fresh
+            const freshUrl = url + (url.includes('?') ? '&' : '?') + 'cb=' + Date.now();
+
+            // Use allorigins as a strict CORS proxy (bypassing heavy rss2json cache)
+            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(freshUrl)}`;
+            const response = await axios.get(proxyUrl);
+
+            // allorigins returns JSON where 'contents' is the raw XML string
+            return {
+                data: response.data.contents,
+                url: url
+            };
+        });
 
         const responses = await Promise.all(promises);
-
         const allNews = [];
+
+        const parser = new DOMParser();
+
         for (const res of responses) {
-            if (res && res.data && res.data.items) {
-                const feedTitle = res.data.feed?.title || 'Unknown Source';
-                for (const item of res.data.items) {
-                    allNews.push({
-                        title: item.title,
-                        link: item.link,
-                        pubDate: new Date(item.pubDate),
-                        source: item.author || feedTitle
+            if (res && res.data) {
+                try {
+                    const xmlDoc = parser.parseFromString(res.data, "text/xml");
+                    const titleNode = xmlDoc.querySelector("channel > title");
+                    const feedTitle = titleNode ? titleNode.textContent : 'Global News';
+
+                    const items = xmlDoc.querySelectorAll("item");
+                    // Take up to 10 items per feed to avoid overload
+                    Array.from(items).slice(0, 10).forEach(item => {
+                        const title = item.querySelector("title")?.textContent;
+                        const link = item.querySelector("link")?.textContent;
+                        const pubDateStr = item.querySelector("pubDate")?.textContent;
+                        const author = item.querySelector("author")?.textContent || item.querySelector("dc\\:creator")?.textContent;
+
+                        if (title && link) {
+                            allNews.push({
+                                title: title,
+                                link: link,
+                                pubDate: pubDateStr ? new Date(pubDateStr) : new Date(),
+                                source: author || feedTitle
+                            });
+                        }
                     });
+                } catch (parseError) {
+                    console.error("Error parsing XML feed:", parseError);
                 }
             }
         }
