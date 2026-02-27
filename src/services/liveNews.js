@@ -38,18 +38,30 @@ export const fetchLiveNews = async (activeUrls = null) => {
         const fetchSubset = urlsToFetch.slice(0, 3);
 
         const promises = fetchSubset.map(async (url) => {
-            // Add cache buster to the original RSS URL so the remote origin knows it's fresh
-            const freshUrl = url + (url.includes('?') ? '&' : '?') + 'cb=' + Date.now();
+            try {
+                // Try aggressive cache-busting XML fetch first
+                const freshUrl = url + (url.includes('?') ? '&' : '?') + 'cb=' + Date.now();
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(freshUrl)}`;
+                const response = await axios.get(proxyUrl);
 
-            // Use allorigins as a strict CORS proxy (bypassing heavy rss2json cache)
-            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(freshUrl)}`;
-            const response = await axios.get(proxyUrl);
-
-            // allorigins returns JSON where 'contents' is the raw XML string
-            return {
-                data: response.data.contents,
-                url: url
-            };
+                if (response.data && response.data.contents && response.data.contents.includes('<rss')) {
+                    return { data: response.data.contents, url: url, isXml: true };
+                }
+                throw new Error("Invalid proxy response");
+            } catch (err) {
+                // Fallback to rss2json (cached but extremely reliable for strict domains like BBC)
+                try {
+                    const fallbackUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`;
+                    const res = await axios.get(fallbackUrl);
+                    if (res.data && res.data.items) {
+                        return { data: res.data, url: url, isXml: false };
+                    }
+                    return null;
+                } catch (fallbackErr) {
+                    console.warn(`Both proxy and fallback failed for ${url}`);
+                    return null;
+                }
+            }
         });
 
         const responses = await Promise.all(promises);
@@ -58,7 +70,9 @@ export const fetchLiveNews = async (activeUrls = null) => {
         const parser = new DOMParser();
 
         for (const res of responses) {
-            if (res && res.data) {
+            if (!res || !res.data) continue;
+
+            if (res.isXml) {
                 try {
                     const xmlDoc = parser.parseFromString(res.data, "text/xml");
                     const titleNode = xmlDoc.querySelector("channel > title");
@@ -70,7 +84,11 @@ export const fetchLiveNews = async (activeUrls = null) => {
                         const title = item.querySelector("title")?.textContent;
                         const link = item.querySelector("link")?.textContent;
                         const pubDateStr = item.querySelector("pubDate")?.textContent;
-                        const author = item.querySelector("author")?.textContent || item.querySelector("dc\\:creator")?.textContent;
+                        let author = item.querySelector("author")?.textContent;
+                        if (!author) {
+                            const dcCreator = item.getElementsByTagNameNS("*", "creator");
+                            if (dcCreator.length > 0) author = dcCreator[0].textContent;
+                        }
 
                         if (title && link) {
                             allNews.push({
@@ -83,6 +101,17 @@ export const fetchLiveNews = async (activeUrls = null) => {
                     });
                 } catch (parseError) {
                     console.error("Error parsing XML feed:", parseError);
+                }
+            } else {
+                // Parse JSON from rss2json
+                const feedTitle = res.data.feed?.title || 'Global News';
+                for (const item of res.data.items) {
+                    allNews.push({
+                        title: item.title,
+                        link: item.link,
+                        pubDate: new Date(item.pubDate),
+                        source: item.author || feedTitle
+                    });
                 }
             }
         }
