@@ -1,17 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { fetchLiveNews } from '../services/liveNews';
-import { Radio } from 'lucide-react';
+import { Radio, RefreshCw } from 'lucide-react';
 
 const LiveIntelligenceFeed = ({ activeUrls }) => {
     const [news, setNews] = useState([]);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const loadNews = () => {
+        setIsRefreshing(true);
+        fetchLiveNews(activeUrls)
+            .then(setNews)
+            .finally(() => setIsRefreshing(false));
+    };
 
     useEffect(() => {
-        fetchLiveNews(activeUrls).then(setNews);
+        loadNews();
 
         // Refresh news every 5 minutes
-        const interval = setInterval(() => {
-            fetchLiveNews(activeUrls).then(setNews);
-        }, 5 * 60 * 1000);
+        const interval = setInterval(loadNews, 5 * 60 * 1000);
 
         return () => clearInterval(interval);
     }, [activeUrls]);
@@ -20,8 +26,15 @@ const LiveIntelligenceFeed = ({ activeUrls }) => {
 
     return (
         <div className="news-ticker-wrapper">
-            <div className="news-badge">
+            <div className="news-badge" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <span style={{ color: 'var(--bg-dark)', fontWeight: 'bold', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: 'var(--accent-blue)' }}>LIVE INTEL</span>
+                <button
+                    onClick={loadNews}
+                    style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', padding: 0 }}
+                    title="Force Refresh Data"
+                >
+                    <RefreshCw size={14} className={isRefreshing ? 'spin-anim' : ''} />
+                </button>
             </div>
             <div className="news-marquee-container">
                 <div className="news-marquee">

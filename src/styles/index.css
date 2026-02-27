@@ -426,6 +426,16 @@ body {
   }
 }
 
+@keyframes spin-anim {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.spin-anim {
+  animation: spin-anim 1s linear infinite;
+}
+
 /* HTML Marker Overlays */
 .pulse-marker {
   position: relative;
