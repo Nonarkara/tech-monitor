@@ -291,7 +291,8 @@ body {
 /* --- V2 Map Controls (Restyled for Grid) --- */
 .region-selector {
   position: absolute;
-  bottom: 24px;
+  bottom: 220px;
+  /* Shifted up to float cleanly above the bottom panels */
   left: 50%;
   transform: translateX(-50%);
   display: flex;
