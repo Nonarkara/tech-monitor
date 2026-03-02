@@ -9,11 +9,13 @@ export const APAC_SOURCES = [
     { id: 'asia_news', name: 'Asia News', url: 'https://asianews.network/feed/' },
     { id: 'bangkok_post', name: 'Bangkok Post', url: 'https://www.bangkokpost.com/rss/data/news.xml' },
     { id: 'bbc_asia', name: 'BBC Asia', url: 'http://feeds.bbci.co.uk/news/world/asia/rss.xml' },
+    { id: 'bbc_world', name: 'BBC World', url: 'http://feeds.bbci.co.uk/news/world/rss.xml' },
     { id: 'cna', name: 'Channel NewsAsia (CNA)', url: 'https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml' },
     { id: 'guardian_aus', name: 'Guardian Australia', url: 'https://www.theguardian.com/australia-news/rss' },
     { id: 'indian_express', name: 'Indian Express', url: 'https://indianexpress.com/feed/' },
     { id: 'island_times', name: 'Island Times', url: 'https://islandtimes.org/feed/' },
     { id: 'japan_times', name: 'Japan Times', url: 'https://www.japantimes.co.jp/feed/' },
+    { id: 'aljazeera', name: 'Al Jazeera Global', url: 'https://www.aljazeera.com/xml/rss/all.xml' },
     { id: 'scmp', name: 'SCMP', url: 'https://www.scmp.com/rss/91/feed' },
     { id: 'nikkei', name: 'Nikkei Asia', url: 'https://asia.nikkei.com/rss/feed/category/53' },
     { id: 'reuters_asia', name: 'Reuters Tech', url: 'https://moxie.foxnews.com/google-publisher/tech.xml' }, // Fallback since Reuters RSS is closed

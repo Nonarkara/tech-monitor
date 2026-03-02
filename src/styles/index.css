@@ -131,12 +131,18 @@ body {
   grid-row: 3 / -1;
   /* spans to bottom */
   gap: 12px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .right-sidebar {
   grid-column: 3;
   grid-row: 3;
   gap: 12px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .bottom-bar {
