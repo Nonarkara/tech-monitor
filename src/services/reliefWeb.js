@@ -66,6 +66,7 @@ export const fetchConflictsAndCrises = async () => {
                 id: h.id,
                 title: h.title,
                 country: h.country,
+                type: 'conflict',
                 types: h.type
             }
         }));
@@ -95,6 +96,7 @@ export const fetchConflictsAndCrises = async () => {
                             id: item.id,
                             title: item.fields.name,
                             country: country.name,
+                            type: 'conflict',
                             types: item.fields.type?.map(t => t.name).join(', ') || 'Crisis'
                         }
                     };
