@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ExternalLink, Calendar, MapPin } from 'lucide-react';
+import { X, Calendar, MapPin, ShieldAlert } from 'lucide-react';
 
 const EventDetailsPanel = ({ event, onClose }) => {
     if (!event) return null;
@@ -22,10 +22,10 @@ const EventDetailsPanel = ({ event, onClose }) => {
         catClass = 'cat-conflict';
         catLabel = properties.types || 'Humanitarian Crisis';
     } else if (properties.type === 'weather') {
-        catClass = 'cat-economy'; // Blue theme
+        catClass = 'cat-weather';
         catLabel = 'Weather Alert';
     } else if (properties.type === 'aqi') {
-        catClass = 'cat-economy';
+        catClass = 'cat-aqi';
         catLabel = 'Air Quality';
     }
 
@@ -59,7 +59,8 @@ const EventDetailsPanel = ({ event, onClose }) => {
                 {properties.type === 'economy' && (
                     <p>
                         <strong>GDP Growth:</strong> {properties.growth.toFixed(2)}%<br />
-                        Currently tracking below macroscopic trend lines for the region, requiring careful fiscal policy observation.
+                        <strong>Latest Year:</strong> {properties.year || 'Most recent available'}<br /><br />
+                        A macro baseline for fiscal resilience, demand, and investment capacity.
                     </p>
                 )}
                 {properties.type === 'weather' && (
@@ -77,8 +78,24 @@ const EventDetailsPanel = ({ event, onClose }) => {
                 )}
                 {(properties.type === 'disaster' || properties.type === 'conflict') && (
                     <p>
-                        This is an active geo-tagged event reported via global monitoring agencies.
-                        High priority tracking is enabled for regional security and humanitarian resource allocation.
+                        This is an active geo-tagged event being tracked for operational awareness.<br /><br />
+                        {properties.severity && (
+                            <>
+                                <strong style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                    <ShieldAlert size={14} /> Severity:
+                                </strong> {properties.severity}<br />
+                            </>
+                        )}
+                        {properties.status && (
+                            <>
+                                <strong>Status:</strong> {properties.status}<br />
+                            </>
+                        )}
+                        {properties.operationalFocus && (
+                            <>
+                                <strong>Operational Focus:</strong> {properties.operationalFocus}
+                            </>
+                        )}
                     </p>
                 )}
             </div>

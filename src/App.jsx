@@ -5,27 +5,28 @@ import RegionSelector from './components/RegionSelector';
 import EventDetailsPanel from './components/EventDetailsPanel';
 import WorldClock from './components/WorldClock';
 import LiveIntelligenceFeed from './components/LiveIntelligenceFeed';
-import RegionalNewsPanel from './components/RegionalNewsPanel';
+import IntelligencePanel from './components/IntelligencePanel';
+import LiveMediaPanel from './components/LiveMediaPanel';
 import MarketRadarPanel from './components/MarketRadarPanel';
 import SettingsModal from './components/SettingsModal';
-import { APAC_SOURCES } from './services/liveNews';
+import ErrorBoundary from './components/ErrorBoundary';
+import { INTELLIGENCE_SOURCES } from './services/liveNews';
 import { Settings } from 'lucide-react';
 
 function App() {
-  const [activeLayers, setActiveLayers] = useState(['disasters', 'weather', 'economy']);
-  const [activeRegion, setActiveRegion] = useState('asean');
+  const [activeLayers, setActiveLayers] = useState(['disasters', 'weather', 'economy', 'conflicts', 'aqi']);
+  const [activeRegion, setActiveRegion] = useState('middleeast');
   const [selectedEvent, setSelectedEvent] = useState(null);
 
-  // Settings State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [activeSources, setActiveSources] = useState(APAC_SOURCES.map(s => s.id));
+  const [activeSources, setActiveSources] = useState(INTELLIGENCE_SOURCES.map((source) => source.id));
 
   const [viewState, setViewState] = useState({
-    longitude: 105,
-    latitude: 10,
-    zoom: 4,
-    pitch: 0,
-    bearing: 0
+    longitude: 53,
+    latitude: 30,
+    zoom: 4.5,
+    pitch: 25,
+    bearing: -8
   });
 
   const toggleLayer = (layerId) => {
@@ -41,7 +42,7 @@ function App() {
     setViewState(prev => ({
       ...prev,
       ...targetViewState,
-      transitionDuration: 1500, // Smooth flyTo effect
+      transitionDuration: 1500,
     }));
   }, []);
 
@@ -52,41 +53,70 @@ function App() {
   };
 
   const setAllSources = (enable) => {
-    setActiveSources(enable ? APAC_SOURCES.map(s => s.id) : []);
+    setActiveSources(enable ? INTELLIGENCE_SOURCES.map((source) => source.id) : []);
   };
 
-  // Resolve source IDs to URLs for the fetcher
-  const activeUrls = activeSources.map(id => APAC_SOURCES.find(s => s.id === id)?.url).filter(Boolean);
+  const sourceSetKey = activeSources.join(',');
 
   return (
     <>
-
       <div className="app-container">
-        <MapContainer
-          viewState={viewState}
-          onMove={setViewState}
-          activeLayers={activeLayers}
-          onMarkerClick={setSelectedEvent}
-        />
+        {/* Full-screen map underneath */}
+        <ErrorBoundary label="Map">
+          <MapContainer
+            viewState={viewState}
+            onMove={setViewState}
+            activeLayers={activeLayers}
+            onMarkerClick={setSelectedEvent}
+          />
+        </ErrorBoundary>
 
-        {/* Top Header Placeholder */}
-        <div className="header-bar grid-panel" style={{ background: 'var(--surface-color)', padding: '0 24px' }}>
-          <div style={{ fontWeight: 'bold', letterSpacing: '2px' }}>MONITOR</div>
+        {/* Row 1: World Clock */}
+        <ErrorBoundary inline label="World Clock">
+          <WorldClock />
+        </ErrorBoundary>
+
+        {/* Row 2: Header bar */}
+        <div className="header-bar grid-panel" style={{ padding: '0 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontWeight: 700, letterSpacing: '2.5px', fontSize: '0.9rem', color: '#ef4444' }}>IRAN CONFLICT MONITOR</span>
+          </div>
           <button
             onClick={() => setIsSettingsOpen(true)}
-            style={{ background: 'transparent', border: '1px solid #444', color: '#fff', padding: '6px 12px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.8rem' }}>
-            <Settings size={14} /> Settings (Sources)
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              color: 'var(--text-muted)',
+              padding: '5px 12px',
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+              fontFamily: 'inherit',
+              transition: 'all 0.2s'
+            }}
+          >
+            <Settings size={13} /> Sources
           </button>
         </div>
 
-        <LiveIntelligenceFeed activeUrls={activeUrls} />
-
-        <WorldClock />
-
+        {/* Row 3: Left sidebar */}
         <div className="left-sidebar">
-          <Sidebar activeLayers={activeLayers} toggleLayer={toggleLayer} />
+          <ErrorBoundary inline label="Sidebar">
+            <Sidebar activeLayers={activeLayers} toggleLayer={toggleLayer} />
+          </ErrorBoundary>
         </div>
 
+        {/* Row 3: Live media (tiny corner) */}
+        <div className="live-media-dock">
+          <ErrorBoundary inline label="Live Media">
+            <LiveMediaPanel />
+          </ErrorBoundary>
+        </div>
+
+        {/* Row 3: Right sidebar — Iran focused */}
         <div className="right-sidebar">
           {selectedEvent && (
             <EventDetailsPanel
@@ -94,21 +124,39 @@ function App() {
               onClose={() => setSelectedEvent(null)}
             />
           )}
-          <RegionalNewsPanel regionName="Thailand" title="Thailand Tech Ecosystem" activeUrls={activeUrls} />
-          <RegionalNewsPanel regionName="DEPA" title="depa & MDES Directives" activeUrls={activeUrls} />
+          <ErrorBoundary inline label="Iran Strikes">
+            <IntelligencePanel key={`iranStrikes:${sourceSetKey}`} briefingId="iranStrikes" activeSourceIds={activeSources} />
+          </ErrorBoundary>
+          <ErrorBoundary inline label="Gulf Security">
+            <IntelligencePanel key={`gulfSecurity:${sourceSetKey}`} briefingId="gulfSecurity" activeSourceIds={activeSources} />
+          </ErrorBoundary>
         </div>
 
-        <div className="bottom-bar flex-row">
-          <MarketRadarPanel />
-          <RegionalNewsPanel regionName="SEA" title="Global Technology News" activeUrls={activeUrls} />
-          <RegionalNewsPanel regionName="Global" title="Global Macro & Policy" activeUrls={activeUrls} />
+        {/* Row 4: Bottom bar — Iran conflict panels */}
+        <div className="bottom-bar">
+          <ErrorBoundary inline label="Market Radar">
+            <MarketRadarPanel />
+          </ErrorBoundary>
+          <ErrorBoundary inline label="Diplomacy & Sanctions">
+            <IntelligencePanel key={`iranDiplomacy:${sourceSetKey}`} briefingId="iranDiplomacy" activeSourceIds={activeSources} />
+          </ErrorBoundary>
+          <ErrorBoundary inline label="Proxy Theater">
+            <IntelligencePanel key={`proxyTheater:${sourceSetKey}`} briefingId="proxyTheater" activeSourceIds={activeSources} />
+          </ErrorBoundary>
         </div>
 
+        {/* Row 5: Live news ticker */}
+        <ErrorBoundary inline label="Live Feed">
+          <LiveIntelligenceFeed key={`ticker:${sourceSetKey}`} activeSourceIds={activeSources} />
+        </ErrorBoundary>
+
+        {/* Floating: Region selector */}
         <RegionSelector
           activeRegion={activeRegion}
           onSelectRegion={handleRegionSelect}
         />
 
+        {/* Modal: Settings */}
         <SettingsModal
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}

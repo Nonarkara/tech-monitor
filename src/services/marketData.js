@@ -1,117 +1,119 @@
 import axios from 'axios';
+import { fetchBackendJson } from './backendClient.js';
 
-// Crypto from Binance
 const CRYPTO_SYMBOLS = ['BTCUSDT', 'ETHUSDT'];
-
-// Forex from open.er-api.com (base USD). We need JPY, CNY, EUR, SGD.
 const FOREX_API = 'https://open.er-api.com/v6/latest/USD';
 
-// Simple mock for Gold/Silver prices to ensure stable UI without relying on paid/flaky commodity APIs.
-// We will jitter them slightly every 15 seconds to simulate live changes.
-let mockCommodities = {
-    'Gold (XAU)': { price: 2345.50, change: 0.12 },
-    'Silver (XAG)': { price: 28.40, change: -0.05 }
+// Reference spot values in USD — anchors for energy and precious metals
+// relevant to Iran conflict (oil, gold as safe haven, defense-linked metals)
+const REFERENCE_COMMODITIES = {
+    'Gold': 2345.5,
+    'Brent Oil': 82.5,
+    'WTI Crude': 78.2
 };
 
-const updateMockCommodities = () => {
-    Object.keys(mockCommodities).forEach(key => {
-        const jitter = (Math.random() - 0.5) * 0.001; // Tiny percentage jitter
-        mockCommodities[key].price *= (1 + jitter);
-        mockCommodities[key].change += (jitter * 100);
-    });
+const previousQuotes = new Map();
+
+const getDelta = (key, value) => {
+    const previous = previousQuotes.get(key);
+    previousQuotes.set(key, value);
+
+    if (!previous || previous === 0) {
+        return {
+            changePerc: '0.00%',
+            isPositive: true
+        };
+    }
+
+    const delta = ((value - previous) / previous) * 100;
+
+    return {
+        changePerc: `${delta >= 0 ? '+' : ''}${delta.toFixed(2)}%`,
+        isPositive: delta >= 0
+    };
 };
 
 export const fetchMarketRadar = async () => {
     try {
-        let results = [];
+        return await fetchBackendJson('/api/markets');
+    } catch (error) {
+        console.warn('Backend market fetch failed', error.message);
+    }
 
-        // 1. Fetch Crypto
+    try {
+        const results = [];
+        let rates = null;
+        let thbRate = 35.0;
+
         try {
-            const cryptoPromises = CRYPTO_SYMBOLS.map(sym =>
-                axios.get(`https://api.binance.com/api/v3/ticker/24hr?symbol=${sym}`)
-            );
-            const cryptoRes = await Promise.all(cryptoPromises);
+            const forexResponse = await axios.get(FOREX_API, { timeout: 15000 });
+            rates = forexResponse.data?.rates || null;
+            thbRate = rates?.THB || thbRate;
+        } catch (error) {
+            console.warn('Forex API failed', error.message);
+        }
 
-            cryptoRes.forEach(res => {
-                const data = res.data;
+        try {
+            const cryptoResponses = await Promise.all(
+                CRYPTO_SYMBOLS.map((symbol) => axios.get(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`, { timeout: 15000 }))
+            );
+
+            cryptoResponses.forEach((response) => {
+                const data = response.data;
+                const changeValue = parseFloat(data.priceChangePercent);
+
                 results.push({
                     symbol: data.symbol.replace('USDT', ''),
                     price: parseFloat(data.lastPrice).toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
-                    changePerc: parseFloat(data.priceChangePercent).toFixed(2) + '%',
-                    isPositive: parseFloat(data.priceChangePercent) >= 0
+                    changePerc: `${changeValue >= 0 ? '+' : ''}${changeValue.toFixed(2)}%`,
+                    isPositive: changeValue >= 0
                 });
             });
-        } catch (e) {
-            console.warn("Crypto API failed", e);
+        } catch (error) {
+            console.warn('Crypto API failed', error.message);
         }
 
-        // 2. Fetch Forex (Base THB)
-        try {
-            const forexRes = await axios.get(FOREX_API);
-            const rates = forexRes.data.rates;
-            const thbRate = rates['THB'] || 35.0; // Fallback to 35 if THB is missing
+        if (rates) {
+            // Iran-relevant FX: USD base pairs for key conflict currencies
+            [
+                { id: 'EUR', name: 'EUR/USD', invert: true },
+                { id: 'GBP', name: 'GBP/USD', invert: true },
+                { id: 'ILS', name: 'USD/ILS', invert: false },
+                { id: 'SAR', name: 'USD/SAR', invert: false },
+                { id: 'AED', name: 'USD/AED', invert: false },
+                { id: 'THB', name: 'USD/THB', invert: false }
+            ].forEach((cross) => {
+                if (!rates[cross.id]) return;
 
-            // We want to see how much 1 unit of foreign currency costs in THB
-            // For example, 1 USD = THB. 1 EUR = (THB/EUR) THB.
-            const targetCrosses = [
-                { id: 'USD', name: 'USD/THB' },
-                { id: 'EUR', name: 'EUR/THB' },
-                { id: 'JPY', name: 'JPY/THB' },
-                { id: 'CNY', name: 'CNY/THB' },
-                { id: 'SGD', name: 'SGD/THB' }
-            ];
+                const price = cross.invert ? (1 / rates[cross.id]) : rates[cross.id];
+                const delta = getDelta(cross.name, price);
 
-            targetCrosses.forEach(cross => {
-                if (rates[cross.id]) {
-                    // 1 unit of cross.id in USD is (1 / rates[cross.id])
-                    // 1 unit of cross.id in THB is (1 / rates[cross.id]) * thbRate
-                    const priceInThb = thbRate / rates[cross.id];
-                    const mockChange = (Math.random() * 0.4 - 0.2);
-
-                    // Format appropriately. JPY often has 2 decimals, USD/EUR have 2.
-                    const fractionDigits = cross.id === 'JPY' ? 4 : 2;
-                    results.push({
-                        symbol: cross.name,
-                        price: priceInThb.toLocaleString('th-TH', { style: 'currency', currency: 'THB', minimumFractionDigits: fractionDigits }),
-                        changePerc: mockChange.toFixed(2) + '%',
-                        isPositive: mockChange >= 0
-                    });
-                }
-            });
-        } catch (e) {
-            console.warn("Forex API failed", e);
-        }
-
-        // 3. Add Commodities (Live Simulation, converted to THB)
-        updateMockCommodities();
-        try {
-            // Re-fetch Forex just for the THB base (if we wanted true precision, we'd cache the rate from Step 2)
-            const forexRes = await axios.get(FOREX_API);
-            const thbRate = forexRes.data.rates['THB'] || 35.0;
-
-            Object.keys(mockCommodities).forEach(sym => {
-                const data = mockCommodities[sym];
-                // mockCommodities price is in USD representing 1 Troy Ounce. Convert to THB.
-                const priceThb = data.price * thbRate;
                 results.push({
-                    symbol: `${sym} (THB)`,
-                    price: priceThb.toLocaleString('th-TH', { style: 'currency', currency: 'THB' }),
-                    changePerc: data.change.toFixed(2) + '%',
-                    isPositive: data.change >= 0
+                    symbol: cross.name,
+                    price: price.toLocaleString('en-US', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 4
+                    }),
+                    changePerc: delta.changePerc,
+                    isPositive: delta.isPositive
                 });
             });
-        } catch (e) {
-            console.warn("Commodities mock failed", e);
         }
+
+        Object.entries(REFERENCE_COMMODITIES).forEach(([symbol, usdPrice]) => {
+            const delta = getDelta(symbol, usdPrice);
+
+            results.push({
+                symbol,
+                price: usdPrice.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
+                changePerc: delta.changePerc,
+                isPositive: delta.isPositive
+            });
+        });
 
         return results;
     } catch (error) {
-        console.warn("Market Radar entirely failed, using fallback:", error);
-        return [
-            { symbol: 'BTC', price: '$62,450.00', changePerc: '+2.40%', isPositive: true },
-            { symbol: 'ETH', price: '$3,420.15', changePerc: '-0.85%', isPositive: false },
-            { symbol: 'Gold (XAU)', price: '$2,345.50', changePerc: '+0.12%', isPositive: true },
-            { symbol: 'USD/JPY', price: '155.40', changePerc: '-0.10%', isPositive: false }
-        ];
+        console.warn('Market radar failed', error.message);
+        return [];
     }
 };

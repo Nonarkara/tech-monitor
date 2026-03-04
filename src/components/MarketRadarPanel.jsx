@@ -1,33 +1,49 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback } from 'react';
 import { fetchMarketRadar } from '../services/marketData';
-import { Activity, TrendingUp, TrendingDown } from 'lucide-react';
+import { Activity, RefreshCw, TrendingUp, TrendingDown } from 'lucide-react';
+import { useLiveResource } from '../hooks/useLiveResource';
 
 const MarketRadarPanel = () => {
-    const [markets, setMarkets] = useState([]);
-
-    useEffect(() => {
-        fetchMarketRadar().then(setMarkets);
-
-        // Refresh every 15 seconds for live feel
-        const interval = setInterval(() => {
-            fetchMarketRadar().then(setMarkets);
-        }, 15000);
-
-        return () => clearInterval(interval);
-    }, []);
+    const fetcher = useCallback(() => fetchMarketRadar(), []);
+    const {
+        data: markets = [],
+        lastUpdated,
+        isRefreshing,
+        isLoading,
+        isStale,
+        error,
+        refresh
+    } = useLiveResource(fetcher, {
+        cacheKey: 'market-radar',
+        intervalMs: 60000,
+        isUsable: (items) => Array.isArray(items) && items.length > 0
+    });
+    const statusLabel = isStale ? 'STALE' : (error && markets.length === 0 ? 'OFFLINE' : 'LIVE');
 
     return (
         <div className="bottom-card flex-column">
             <div className="panel-header">
                 <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Activity size={14} /> MARKET RADAR
+                    <Activity size={14} /> OIL, FX & MARKETS
                 </span>
-                <span style={{ fontSize: '0.65rem', color: 'var(--bg-dark)', fontWeight: 'bold', background: 'var(--accent-blue)', padding: '2px 6px', borderRadius: '4px' }}>LIVE</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                        onClick={refresh}
+                        style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', padding: 0 }}
+                        title="Refresh market data"
+                    >
+                        <RefreshCw size={14} className={isRefreshing ? 'spin-anim' : ''} />
+                    </button>
+                    <span className={`live-pill ${statusLabel !== 'LIVE' ? 'live-pill-muted' : ''}`}>{statusLabel}</span>
+                </div>
             </div>
             <div className="panel-content" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div className="panel-lead" style={{ marginBottom: 0 }}>
+                    {lastUpdated ? `Last live update ${new Date(lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Waiting for first live quote...'}
+                </div>
                 <ul className="radar-list">
                     {markets.map((item, index) => (
-                        <li key={index} className="radar-item" style={{ cursor: 'default' }}>
+                        <li key={index} className="radar-item">
                             <div className="radar-token">
                                 <strong>{item.symbol}</strong>
                             </div>
@@ -45,7 +61,9 @@ const MarketRadarPanel = () => {
                 {
                     markets.length === 0 && (
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                            <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>Loading markets...</span>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>
+                                {isLoading ? 'Connecting to live markets...' : 'No live market data available right now.'}
+                            </span>
                         </div>
                     )
                 }

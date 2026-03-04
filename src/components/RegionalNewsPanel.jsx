@@ -59,12 +59,15 @@ const RegionalNewsPanel = ({ regionName, title, activeUrls }) => {
     }, [regionName, activeUrls]);
 
     useEffect(() => {
-        fetchNews();
+        const kickoff = setTimeout(fetchNews, 0);
 
         // Refresh regional news every 5 minutes
         const interval = setInterval(fetchNews, 5 * 60 * 1000);
 
-        return () => clearInterval(interval);
+        return () => {
+            clearTimeout(kickoff);
+            clearInterval(interval);
+        };
     }, [fetchNews]);
 
     return (

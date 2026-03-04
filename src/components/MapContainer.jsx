@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -7,65 +7,324 @@ import { fetchConflictsAndCrises } from '../services/reliefWeb';
 import { fetchLiveWeather } from '../services/weather';
 import { fetchMacroEconomy } from '../services/worldBank';
 import { fetchAirQuality } from '../services/airQuality';
+import { useLiveResource } from '../hooks/useLiveResource';
+import { EO_TILE_LAYERS } from '../services/eoTiles';
+import { fetchSdgLayer } from '../services/undpSdg';
+
+const STRATEGIC_ZONES = {
+    type: 'FeatureCollection',
+    features: [
+        {
+            type: 'Feature',
+            geometry: {
+                type: 'Polygon',
+                coordinates: [[[44, 22], [60, 22], [60, 32], [44, 32], [44, 22]]]
+            },
+            properties: {
+                fill: '#ef4444',
+                line: '#fca5a5'
+            }
+        },
+        {
+            type: 'Feature',
+            geometry: {
+                type: 'Polygon',
+                coordinates: [[[94, -6], [109, -6], [109, 18], [94, 18], [94, -6]]]
+            },
+            properties: {
+                fill: '#10b981',
+                line: '#6ee7b7'
+            }
+        },
+        {
+            type: 'Feature',
+            geometry: {
+                type: 'Polygon',
+                coordinates: [[[32, 11], [45, 11], [45, 22], [32, 22], [32, 11]]]
+            },
+            properties: {
+                fill: '#f59e0b',
+                line: '#fcd34d'
+            }
+        }
+    ]
+};
+
+const OPERATIONAL_CORRIDORS = {
+    type: 'FeatureCollection',
+    features: [
+        {
+            type: 'Feature',
+            geometry: {
+                type: 'LineString',
+                coordinates: [[51.47, 25.28], [55.36, 25.25], [72.88, 19.07], [100.5, 13.75]]
+            },
+            properties: {
+                color: '#ef4444',
+                width: 2.8,
+                glow: 12
+            }
+        },
+        {
+            type: 'Feature',
+            geometry: {
+                type: 'LineString',
+                coordinates: [[40.0, 16.5], [56.0, 18.2], [72.0, 14.6], [90.0, 8.3], [103.82, 1.35]]
+            },
+            properties: {
+                color: '#f59e0b',
+                width: 2.4,
+                glow: 10
+            }
+        },
+        {
+            type: 'Feature',
+            geometry: {
+                type: 'LineString',
+                coordinates: [[121.47, 31.23], [121.56, 25.03], [120.98, 14.6], [103.82, 1.35]]
+            },
+            properties: {
+                color: '#38bdf8',
+                width: 2.2,
+                glow: 9
+            }
+        }
+    ]
+};
+
+const ANCHOR_POINTS = {
+    type: 'FeatureCollection',
+    features: [
+        { type: 'Feature', geometry: { type: 'Point', coordinates: [51.47, 25.28] }, properties: { color: '#ef4444', radius: 10 } },
+        { type: 'Feature', geometry: { type: 'Point', coordinates: [55.36, 25.25] }, properties: { color: '#ef4444', radius: 12 } },
+        { type: 'Feature', geometry: { type: 'Point', coordinates: [53.68, 32.42] }, properties: { color: '#ef4444', radius: 11 } },
+        { type: 'Feature', geometry: { type: 'Point', coordinates: [100.5, 13.75] }, properties: { color: '#10b981', radius: 12 } },
+        { type: 'Feature', geometry: { type: 'Point', coordinates: [103.82, 1.35] }, properties: { color: '#38bdf8', radius: 11 } }
+    ]
+};
+
+const URBAN_MEGAREGIONS = {
+    type: 'FeatureCollection',
+    features: [
+        {
+            type: 'Feature',
+            geometry: {
+                type: 'Polygon',
+                coordinates: [[[99.7, 13.15], [101.45, 13.15], [101.45, 14.55], [99.7, 14.55], [99.7, 13.15]]]
+            },
+            properties: {
+                color: '#10b981',
+                height: 120000,
+                base: 0
+            }
+        },
+        {
+            type: 'Feature',
+            geometry: {
+                type: 'Polygon',
+                coordinates: [[[103.45, 1.05], [104.15, 1.05], [104.15, 1.62], [103.45, 1.62], [103.45, 1.05]]]
+            },
+            properties: {
+                color: '#38bdf8',
+                height: 140000,
+                base: 0
+            }
+        },
+        {
+            type: 'Feature',
+            geometry: {
+                type: 'Polygon',
+                coordinates: [[[54.45, 24.35], [55.85, 24.35], [55.85, 25.65], [54.45, 25.65], [54.45, 24.35]]]
+            },
+            properties: {
+                color: '#ef4444',
+                height: 135000,
+                base: 0
+            }
+        },
+        {
+            type: 'Feature',
+            geometry: {
+                type: 'Polygon',
+                coordinates: [[[120.55, 24.65], [122.25, 24.65], [122.25, 25.4], [120.55, 25.4], [120.55, 24.65]]]
+            },
+            properties: {
+                color: '#f59e0b',
+                height: 105000,
+                base: 0
+            }
+        },
+        {
+            type: 'Feature',
+            geometry: {
+                type: 'Polygon',
+                coordinates: [[[106.2, -6.7], [107.25, -6.7], [107.25, -5.8], [106.2, -5.8], [106.2, -6.7]]]
+            },
+            properties: {
+                color: '#8b5cf6',
+                height: 110000,
+                base: 0
+            }
+        }
+    ]
+};
+
+const CITY_NETWORK = {
+    type: 'FeatureCollection',
+    features: [
+        {
+            type: 'Feature',
+            geometry: {
+                type: 'LineString',
+                coordinates: [[54.9, 24.8], [72.88, 19.07], [100.5, 13.75], [103.82, 1.35]]
+            },
+            properties: {
+                color: '#38bdf8'
+            }
+        },
+        {
+            type: 'Feature',
+            geometry: {
+                type: 'LineString',
+                coordinates: [[100.5, 13.75], [106.82, -6.18], [103.82, 1.35], [121.56, 25.03]]
+            },
+            properties: {
+                color: '#10b981'
+            }
+        },
+        {
+            type: 'Feature',
+            geometry: {
+                type: 'LineString',
+                coordinates: [[103.82, 1.35], [114.17, 22.32], [121.56, 25.03], [139.76, 35.68]]
+            },
+            properties: {
+                color: '#f59e0b'
+            }
+        }
+    ]
+};
+
+const CITY_BEACONS = {
+    type: 'FeatureCollection',
+    features: [
+        {
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [100.5, 13.75] },
+            properties: { name: 'Bangkok', tier: 'policy engine', color: '#10b981', radius: 8 }
+        },
+        {
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [103.82, 1.35] },
+            properties: { name: 'Singapore', tier: 'logistics core', color: '#38bdf8', radius: 8 }
+        },
+        {
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [55.27, 25.2] },
+            properties: { name: 'Dubai', tier: 'airspace hinge', color: '#ef4444', radius: 8 }
+        },
+        {
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [121.56, 25.03] },
+            properties: { name: 'Taipei', tier: 'tech nexus', color: '#f59e0b', radius: 7 }
+        },
+        {
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [106.82, -6.18] },
+            properties: { name: 'Jakarta', tier: 'metro scale', color: '#8b5cf6', radius: 7 }
+        }
+    ]
+};
+
+const countFeatures = (collection) => collection?.features?.length || 0;
+const hasFeatureData = (collection) => Array.isArray(collection?.features) && collection.features.length > 0;
+
+const renderSpatialAura = (data, id, color, baseRadius) => {
+    if (!data?.features?.length) return null;
+
+    return (
+        <Source id={`${id}-aura-source`} type="geojson" data={data}>
+            <Layer
+                id={`${id}-aura-layer`}
+                type="circle"
+                paint={{
+                    'circle-color': color,
+                    'circle-radius': ['interpolate', ['linear'], ['zoom'], 2, baseRadius, 8, baseRadius * 2.4],
+                    'circle-opacity': 0.08,
+                    'circle-blur': 0.75,
+                    'circle-stroke-color': color,
+                    'circle-stroke-width': 1,
+                    'circle-stroke-opacity': 0.14
+                }}
+            />
+        </Source>
+    );
+};
 
 const MapContainer = ({ viewState, onMove, activeLayers, onMarkerClick }) => {
+    const disasterResource = useLiveResource(useCallback(() => fetchNaturalDisasters(), []), {
+        cacheKey: 'map:disasters',
+        enabled: activeLayers.includes('disasters'),
+        intervalMs: 120 * 1000,
+        isUsable: hasFeatureData
+    });
+    const conflictResource = useLiveResource(useCallback(() => fetchConflictsAndCrises(), []), {
+        cacheKey: 'map:conflicts',
+        enabled: activeLayers.includes('conflicts'),
+        intervalMs: 120 * 1000,
+        isUsable: hasFeatureData
+    });
+    const weatherResource = useLiveResource(useCallback(() => fetchLiveWeather(), []), {
+        cacheKey: 'map:weather',
+        enabled: activeLayers.includes('weather'),
+        intervalMs: 120 * 1000,
+        isUsable: hasFeatureData
+    });
+    const economyResource = useLiveResource(useCallback(() => fetchMacroEconomy(), []), {
+        cacheKey: 'map:economy',
+        enabled: activeLayers.includes('economy'),
+        intervalMs: 120 * 1000,
+        isUsable: hasFeatureData
+    });
+    const aqiResource = useLiveResource(useCallback(() => fetchAirQuality(), []), {
+        cacheKey: 'map:aqi',
+        enabled: activeLayers.includes('aqi'),
+        intervalMs: 120 * 1000,
+        isUsable: hasFeatureData
+    });
+    const sdgResource = useLiveResource(useCallback(() => fetchSdgLayer(), []), {
+        cacheKey: 'map:sdg',
+        enabled: activeLayers.includes('sdg'),
+        intervalMs: 24 * 60 * 60 * 1000,
+        isUsable: (d) => d?.features?.length > 0
+    });
 
-    const [disastersData, setDisastersData] = useState(null);
-    const [crisesData, setCrisesData] = useState(null);
-    const [weatherData, setWeatherData] = useState(null);
-    const [economyData, setEconomyData] = useState(null);
-    const [aqiData, setAqiData] = useState(null);
+    const disastersData = disasterResource.data;
+    const crisesData = conflictResource.data;
+    const weatherData = weatherResource.data;
+    const economyData = economyResource.data;
+    const aqiData = aqiResource.data;
+    const sdgData = sdgResource.data;
 
-    useEffect(() => {
-        const fetchDisasters = () => {
-            if (activeLayers.includes('disasters')) fetchNaturalDisasters().then(setDisastersData);
-        };
-        fetchDisasters();
-        const interval = setInterval(fetchDisasters, 120 * 1000);
-        return () => clearInterval(interval);
-    }, [activeLayers]);
-
-    useEffect(() => {
-        const fetchConflicts = () => {
-            if (activeLayers.includes('conflicts')) fetchConflictsAndCrises().then(setCrisesData);
-        };
-        fetchConflicts();
-        const interval = setInterval(fetchConflicts, 120 * 1000);
-        return () => clearInterval(interval);
-    }, [activeLayers]);
-
-    useEffect(() => {
-        const fetchWeather = () => {
-            if (activeLayers.includes('weather')) fetchLiveWeather().then(setWeatherData);
-        };
-        fetchWeather();
-        const interval = setInterval(fetchWeather, 120 * 1000);
-        return () => clearInterval(interval);
-    }, [activeLayers]);
-
-    useEffect(() => {
-        const fetchEconomyAndAqi = () => {
-            if (activeLayers.includes('economy')) fetchMacroEconomy().then(setEconomyData);
-            if (activeLayers.includes('aqi')) fetchAirQuality().then(setAqiData);
-        };
-        fetchEconomyAndAqi();
-        const interval = setInterval(fetchEconomyAndAqi, 120 * 1000);
-        return () => clearInterval(interval);
-    }, [activeLayers]);
-
-    // Helper to render interactive pulsing markers
     const renderMarkers = (data, catClass) => {
-        if (!data || !data.features) return null;
+        if (!data?.features) return null;
+
         return data.features.map((feature, index) => {
             const [lng, lat] = feature.geometry.coordinates;
-            // Provide a stable key, fallback to index if missing id
             const key = feature.properties.id || `${catClass}-${index}`;
             const markerColor = feature.properties.color || '';
+
             return (
-                <Marker key={key} longitude={lng} latitude={lat} anchor="center" onClick={e => {
-                    e.originalEvent.stopPropagation();
-                    onMarkerClick(feature);
-                }}>
+                <Marker
+                    key={key}
+                    longitude={lng}
+                    latitude={lat}
+                    anchor="center"
+                    onClick={(event) => {
+                        event.originalEvent.stopPropagation();
+                        onMarkerClick(feature);
+                    }}
+                >
                     <div
                         className={`pulse-marker ${catClass}`}
                         style={markerColor ? { '--marker-color': markerColor } : {}}
@@ -75,17 +334,193 @@ const MapContainer = ({ viewState, onMove, activeLayers, onMarkerClick }) => {
         });
     };
 
+    const criticalSignals = (activeLayers.includes('conflicts') ? countFeatures(crisesData) : 0)
+        + (activeLayers.includes('disasters') ? countFeatures(disastersData) : 0);
+    const climateSignals = (activeLayers.includes('weather') ? countFeatures(weatherData) : 0)
+        + (activeLayers.includes('aqi') ? countFeatures(aqiData) : 0);
+    const macroSignals = activeLayers.includes('economy') ? countFeatures(economyData) : 0;
+    const priorityMode = activeLayers.includes('conflicts') ? 'Conflict-heavy' : 'Systems baseline';
+    const activeResources = [
+        activeLayers.includes('disasters') ? disasterResource : null,
+        activeLayers.includes('conflicts') ? conflictResource : null,
+        activeLayers.includes('weather') ? weatherResource : null,
+        activeLayers.includes('economy') ? economyResource : null,
+        activeLayers.includes('aqi') ? aqiResource : null
+    ].filter(Boolean);
+    const hasAnyLayerData = activeResources.some((resource) => resource.data);
+    const mapStatus = activeResources.some((resource) => resource.isStale)
+        ? 'STALE'
+        : (activeResources.some((resource) => resource.error) && !hasAnyLayerData ? 'OFFLINE' : 'LIVE');
+    const overlaySignals = [
+        { label: 'Airspace hinge', value: activeLayers.includes('conflicts') ? Math.max(3, countFeatures(crisesData)) : 3 },
+        { label: 'Urban engines', value: URBAN_MEGAREGIONS.features.length },
+        { label: 'City mesh', value: CITY_NETWORK.features.length }
+    ];
+
     return (
         <div className="map-wrapper">
             <Map
                 mapLib={maplibregl}
                 minZoom={2.5}
+                maxPitch={60}
+                pitchWithRotate
+                dragRotate
+                touchZoomRotate
                 {...viewState}
-                onMove={evt => onMove(evt.viewState)}
+                onMove={(event) => onMove(event.viewState)}
                 style={{ width: '100%', height: '100%' }}
                 mapStyle="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
             >
-                {/* Dynamic Weather Radar Layer */}
+                <Source id="strategic-zones" type="geojson" data={STRATEGIC_ZONES}>
+                    <Layer
+                        id="strategic-zones-fill"
+                        type="fill"
+                        paint={{
+                            'fill-color': ['get', 'fill'],
+                            'fill-opacity': 0.08
+                        }}
+                    />
+                    <Layer
+                        id="strategic-zones-line"
+                        type="line"
+                        paint={{
+                            'line-color': ['get', 'line'],
+                            'line-width': 1.4,
+                            'line-opacity': 0.42,
+                            'line-dasharray': [2, 2]
+                        }}
+                    />
+                </Source>
+
+                <Source id="operational-corridors" type="geojson" data={OPERATIONAL_CORRIDORS}>
+                    <Layer
+                        id="operational-corridors-glow"
+                        type="line"
+                        paint={{
+                            'line-color': ['get', 'color'],
+                            'line-width': ['get', 'glow'],
+                            'line-opacity': 0.08,
+                            'line-blur': 1.3
+                        }}
+                    />
+                    <Layer
+                        id="operational-corridors-core"
+                        type="line"
+                        paint={{
+                            'line-color': ['get', 'color'],
+                            'line-width': ['get', 'width'],
+                            'line-opacity': 0.55
+                        }}
+                    />
+                </Source>
+
+                <Source id="anchor-points" type="geojson" data={ANCHOR_POINTS}>
+                    <Layer
+                        id="anchor-points-glow"
+                        type="circle"
+                        paint={{
+                            'circle-color': ['get', 'color'],
+                            'circle-radius': ['interpolate', ['linear'], ['zoom'], 2, ['get', 'radius'], 8, ['*', ['get', 'radius'], 1.8]],
+                            'circle-opacity': 0.07,
+                            'circle-blur': 0.7
+                        }}
+                    />
+                    <Layer
+                        id="anchor-points-core"
+                        type="circle"
+                        paint={{
+                            'circle-color': ['get', 'color'],
+                            'circle-radius': ['interpolate', ['linear'], ['zoom'], 2, 2, 8, 4],
+                            'circle-opacity': 0.45
+                        }}
+                    />
+                </Source>
+
+                <Source id="urban-megaregions" type="geojson" data={URBAN_MEGAREGIONS}>
+                    <Layer
+                        id="urban-megaregions-extrusion"
+                        type="fill-extrusion"
+                        paint={{
+                            'fill-extrusion-color': ['get', 'color'],
+                            'fill-extrusion-height': ['get', 'height'],
+                            'fill-extrusion-base': ['get', 'base'],
+                            'fill-extrusion-opacity': 0.18
+                        }}
+                    />
+                    <Layer
+                        id="urban-megaregions-outline"
+                        type="line"
+                        paint={{
+                            'line-color': ['get', 'color'],
+                            'line-width': 1.2,
+                            'line-opacity': 0.35
+                        }}
+                    />
+                </Source>
+
+                <Source id="city-network" type="geojson" data={CITY_NETWORK}>
+                    <Layer
+                        id="city-network-glow"
+                        type="line"
+                        paint={{
+                            'line-color': ['get', 'color'],
+                            'line-width': 6,
+                            'line-opacity': 0.06
+                        }}
+                    />
+                    <Layer
+                        id="city-network-core"
+                        type="line"
+                        paint={{
+                            'line-color': ['get', 'color'],
+                            'line-width': 1.3,
+                            'line-opacity': 0.32,
+                            'line-dasharray': [1, 1.6]
+                        }}
+                    />
+                </Source>
+
+                <Source id="city-beacons" type="geojson" data={CITY_BEACONS}>
+                    <Layer
+                        id="city-beacons-glow"
+                        type="circle"
+                        paint={{
+                            'circle-color': ['get', 'color'],
+                            'circle-radius': ['interpolate', ['linear'], ['zoom'], 2, 10, 8, 16],
+                            'circle-opacity': 0.08,
+                            'circle-blur': 0.8
+                        }}
+                    />
+                    <Layer
+                        id="city-beacons-core"
+                        type="circle"
+                        paint={{
+                            'circle-color': ['get', 'color'],
+                            'circle-radius': ['get', 'radius'],
+                            'circle-opacity': 0.2,
+                            'circle-stroke-color': ['get', 'color'],
+                            'circle-stroke-width': 1.2,
+                            'circle-stroke-opacity': 0.45
+                        }}
+                    />
+                    <Layer
+                        id="city-beacons-label"
+                        type="symbol"
+                        layout={{
+                            'text-field': ['get', 'name'],
+                            'text-size': 11,
+                            'text-font': ['Open Sans Bold'],
+                            'text-offset': [0, 1.25],
+                            'text-anchor': 'top'
+                        }}
+                        paint={{
+                            'text-color': '#dbeafe',
+                            'text-halo-color': 'rgba(5, 14, 32, 0.9)',
+                            'text-halo-width': 1
+                        }}
+                    />
+                </Source>
+
                 {activeLayers.includes('weather') && (
                     <Source
                         id="rainviewer"
@@ -96,11 +531,73 @@ const MapContainer = ({ viewState, onMove, activeLayers, onMarkerClick }) => {
                         <Layer
                             id="rainviewer-layer"
                             type="raster"
-                            paint={{ 'raster-opacity': 0.6 }}
-                            beforeId="waterway-label" // Try to render under labels if they exist in the style
+                            paint={{ 'raster-opacity': 0.42 }}
+                            beforeId="waterway-label"
                         />
                     </Source>
                 )}
+
+                {/* Earth Observation Satellite Tile Layers */}
+                {EO_TILE_LAYERS.map((eoLayer) => {
+                    if (!activeLayers.includes(eoLayer.id)) return null;
+                    return (
+                        <Source
+                            key={eoLayer.id}
+                            id={eoLayer.id}
+                            type="raster"
+                            tiles={eoLayer.tiles}
+                            tileSize={eoLayer.tileSize || 256}
+                            attribution={eoLayer.attribution}
+                            maxzoom={eoLayer.maxzoom || 8}
+                        >
+                            <Layer
+                                id={`${eoLayer.id}-layer`}
+                                type="raster"
+                                paint={{ 'raster-opacity': eoLayer.opacity || 0.6 }}
+                            />
+                        </Source>
+                    );
+                })}
+
+                {/* UN SDG Choropleth Layer */}
+                {activeLayers.includes('sdg') && sdgData && (
+                    <Source id="sdg-data" type="geojson" data={sdgData}>
+                        {/* Country Fill */}
+                        <Layer
+                            id="sdg-fill"
+                            type="fill"
+                            paint={{
+                                'fill-color': [
+                                    'step',
+                                    ['coalesce', ['get', 'sdgValue'], 0],
+                                    'rgba(148, 163, 184, 0.2)', // 0 (or null fallback) = grey
+                                    20, '#fca5a5',             // 0-20% = light red
+                                    40, '#f87171',             // 20-40% = red
+                                    60, '#fcd34d',             // 40-60% = yellow
+                                    80, '#86efac',             // 60-80% = light green
+                                    95, '#4ade80',             // 80-95% = green
+                                    100, '#22c55e'             // >95% = dark green
+                                ],
+                                'fill-opacity': 0.4
+                            }}
+                        />
+                        {/* Country Outline */}
+                        <Layer
+                            id="sdg-line"
+                            type="line"
+                            paint={{
+                                'line-color': 'rgba(255, 255, 255, 0.2)',
+                                'line-width': 1
+                            }}
+                        />
+                    </Source>
+                )}
+
+                {activeLayers.includes('conflicts') && renderSpatialAura(crisesData, 'conflicts', '#ef4444', 16)}
+                {activeLayers.includes('disasters') && renderSpatialAura(disastersData, 'disasters', '#f59e0b', 14)}
+                {activeLayers.includes('weather') && renderSpatialAura(weatherData, 'weather', '#38bdf8', 18)}
+                {activeLayers.includes('economy') && renderSpatialAura(economyData, 'economy', '#FFC400', 12)}
+                {activeLayers.includes('aqi') && renderSpatialAura(aqiData, 'aqi', '#10b981', 15)}
 
                 {activeLayers.includes('disasters') && renderMarkers(disastersData, 'marker-disaster')}
                 {activeLayers.includes('conflicts') && renderMarkers(crisesData, 'marker-conflict')}
@@ -108,6 +605,46 @@ const MapContainer = ({ viewState, onMove, activeLayers, onMarkerClick }) => {
                 {activeLayers.includes('economy') && renderMarkers(economyData, 'marker-economy')}
                 {activeLayers.includes('aqi') && renderMarkers(aqiData, 'marker-aqi')}
             </Map>
+
+            <div className="map-vignette" aria-hidden="true" />
+            <div className="map-grid-overlay" aria-hidden="true" />
+
+            <div className="map-hud" aria-hidden="true">
+                <span className="map-hud-label">Operational Surface</span>
+                <h3 className="map-hud-title">Toggle satellite layers in the sidebar to overlay real data.</h3>
+                <p className="map-hud-copy">
+                    Nightlights, vegetation, fires, precipitation, and more from NASA, ESA, and JAXA satellites.
+                </p>
+                <div className="map-hud-metrics">
+                    <div className="map-hud-metric">
+                        <strong>{OPERATIONAL_CORRIDORS.features.length}</strong>
+                        <span>hot corridors</span>
+                    </div>
+                    <div className="map-hud-metric">
+                        <strong>{criticalSignals}</strong>
+                        <span>risk nodes</span>
+                    </div>
+                    <div className="map-hud-metric">
+                        <strong>{climateSignals + macroSignals}</strong>
+                        <span>system signals</span>
+                    </div>
+                </div>
+            </div>
+
+            <div className="map-story-strip" aria-hidden="true">
+                <div className="map-story-header">
+                    <span className="map-story-kicker">Map Intelligence</span>
+                    <span className="map-story-mode">{mapStatus} · {priorityMode}</span>
+                </div>
+                <div className="map-story-cards">
+                    {overlaySignals.map((signal) => (
+                        <div key={signal.label} className="map-story-card">
+                            <strong>{signal.value}</strong>
+                            <span>{signal.label}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
         </div>
     );
 };

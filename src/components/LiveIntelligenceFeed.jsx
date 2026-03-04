@@ -1,35 +1,38 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback } from 'react';
 import { fetchLiveNews } from '../services/liveNews';
-import { Radio, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
+import { useLiveResource } from '../hooks/useLiveResource';
 
-const LiveIntelligenceFeed = ({ activeUrls }) => {
-    const [news, setNews] = useState([]);
-    const [isRefreshing, setIsRefreshing] = useState(false);
+const LiveIntelligenceFeed = ({ activeSourceIds }) => {
+    const cacheKey = `ticker:${Array.isArray(activeSourceIds) && activeSourceIds.length ? activeSourceIds.join(',') : 'default'}`;
+    const fetcher = useCallback(() => fetchLiveNews(activeSourceIds), [activeSourceIds]);
+    const {
+        data: rawNews,
+        isRefreshing,
+        isLoading,
+        isStale,
+        error,
+        refresh
+    } = useLiveResource(fetcher, {
+        cacheKey,
+        intervalMs: 3 * 60 * 1000,
+        isUsable: (items) => Array.isArray(items) && items.length > 0
+    });
 
-    const loadNews = () => {
-        setIsRefreshing(true);
-        fetchLiveNews(activeUrls)
-            .then(setNews)
-            .finally(() => setIsRefreshing(false));
-    };
+    const news = Array.isArray(rawNews) ? rawNews : [];
 
-    useEffect(() => {
-        loadNews();
-
-        // Refresh news every 5 minutes
-        const interval = setInterval(loadNews, 5 * 60 * 1000);
-
-        return () => clearInterval(interval);
-    }, [activeUrls]);
-
-    if (news.length === 0) return null;
+    if (!isLoading && news.length === 0 && !isStale && !error) {
+        return null;
+    }
 
     return (
         <div className="news-ticker-wrapper">
             <div className="news-badge" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ color: 'var(--bg-dark)', fontWeight: 'bold', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: 'var(--accent-blue)' }}>LIVE INTEL</span>
+                <span style={{ color: 'var(--bg-dark)', fontWeight: 'bold', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: isStale ? 'var(--accent-amber)' : 'var(--accent-blue)' }}>
+                    {isStale ? 'STALE' : 'LIVE INTEL'}
+                </span>
                 <button
-                    onClick={loadNews}
+                    onClick={refresh}
                     style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', padding: 0 }}
                     title="Force Refresh Data"
                 >
@@ -37,17 +40,23 @@ const LiveIntelligenceFeed = ({ activeUrls }) => {
                 </button>
             </div>
             <div className="news-marquee-container">
-                <div className="news-marquee">
+                <div className={`news-marquee ${news.length === 0 ? 'news-marquee-static' : ''}`}>
                     {/* Duplicate for infinite scroll illusion */}
-                    {[...news, ...news].map((item, index) => (
+                    {(news.length > 0 ? [...news, ...news] : [{
+                        title: error ? 'Live headline feeds are temporarily unavailable. Last-good data will reappear when the sources respond.' : 'Connecting to live headline feeds...',
+                        link: '',
+                        source: error ? 'Feed Status' : 'Sync',
+                        tags: [isStale ? 'stale' : 'loading']
+                    }]).map((item, index) => (
                         <a
                             key={index}
-                            href={item.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                            href={item.link || undefined}
+                            target={item.link ? '_blank' : undefined}
+                            rel={item.link ? 'noopener noreferrer' : undefined}
                             className="news-item"
                         >
                             <span className="source">{item.source}:</span> {item.title}
+                            {item.tags?.[0] && <span style={{ marginLeft: '8px', color: 'var(--accent-blue)', fontSize: '0.75rem' }}>#{item.tags[0]}</span>}
                         </a>
                     ))}
                 </div>

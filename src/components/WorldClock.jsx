@@ -2,15 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Clock } from 'lucide-react';
 
 const cities = [
-    { name: 'Bangkok', tz: 'Asia/Bangkok', primary: true },
-    { name: 'Beijing', tz: 'Asia/Shanghai' },
-    { name: 'Tokyo', tz: 'Asia/Tokyo' },
-    { name: 'Seoul', tz: 'Asia/Seoul' },
-    { name: 'Kuala Lumpur', tz: 'Asia/Kuala_Lumpur' },
+    { name: 'Tehran', tz: 'Asia/Tehran', primary: true },
+    { name: 'Tel Aviv', tz: 'Asia/Jerusalem' },
+    { name: 'Dubai', tz: 'Asia/Dubai' },
+    { name: 'Riyadh', tz: 'Asia/Riyadh' },
+    { name: 'Beirut', tz: 'Asia/Beirut' },
     { name: 'London', tz: 'Europe/London' },
-    { name: 'Paris', tz: 'Europe/Paris' },
-    { name: 'New York', tz: 'America/New_York' },
-    { name: 'San Francisco', tz: 'America/Los_Angeles' },
+    { name: 'Washington', tz: 'America/New_York' },
+    { name: 'Moscow', tz: 'Europe/Moscow' },
+    { name: 'Bangkok', tz: 'Asia/Bangkok' },
 ];
 
 const WorldClock = () => {
@@ -38,7 +38,7 @@ const WorldClock = () => {
                 return { time: timeStr, date: dateStr };
             }
             return { time: timeStr };
-        } catch (e) {
+        } catch {
             return { time: '--:--', date: '---' };
         }
     };
@@ -64,7 +64,7 @@ const WorldClock = () => {
                     const dt = formatTime(currentTime, city.tz, true, false);
                     return (
                         <div key={city.name} className="primary-clock-content">
-                            <div className="clock-city">{city.name} (TH)</div>
+                            <div className="clock-city">{city.name} (IR)</div>
                             <div className="clock-time-large">
                                 {dt.time.split(':').map((part, i) => (
                                     <React.Fragment key={i}>

@@ -1,153 +1,416 @@
 import axios from 'axios';
+import { fetchBackendJson } from './backendClient.js';
 
-// Utilizes a free RSS to JSON converter service (rss2json) 
-// to fetch live technology and business news from highly reputable sources.
+const FEED_PROXY = 'https://api.allorigins.win/get?url=';
+const FEED_FALLBACK = 'https://api.rss2json.com/v1/api.json?rss_url=';
+export const DEFAULT_SOURCE_IDS = ['bbc_world', 'aljazeera', 'guardian_world', 'bangkok_post', 'cna', 'nikkei'];
 
-export const APAC_SOURCES = [
-    { id: 'abc', name: 'ABC News Australia', url: 'https://www.abc.net.au/news/feed/51120/rss.xml' },
-    { id: 'asahi', name: 'Asahi Shimbun', url: 'https://rss.asahi.com/rss/asahi/newsheadlines.rdf' },
-    { id: 'asia_news', name: 'Asia News', url: 'https://asianews.network/feed/' },
-    { id: 'bangkok_post', name: 'Bangkok Post', url: 'https://www.bangkokpost.com/rss/data/news.xml' },
-    { id: 'bbc_asia', name: 'BBC Asia', url: 'http://feeds.bbci.co.uk/news/world/asia/rss.xml' },
-    { id: 'bbc_world', name: 'BBC World', url: 'http://feeds.bbci.co.uk/news/world/rss.xml' },
-    { id: 'cna', name: 'Channel NewsAsia (CNA)', url: 'https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml' },
-    { id: 'guardian_aus', name: 'Guardian Australia', url: 'https://www.theguardian.com/australia-news/rss' },
-    { id: 'indian_express', name: 'Indian Express', url: 'https://indianexpress.com/feed/' },
-    { id: 'island_times', name: 'Island Times', url: 'https://islandtimes.org/feed/' },
-    { id: 'japan_times', name: 'Japan Times', url: 'https://www.japantimes.co.jp/feed/' },
-    { id: 'aljazeera', name: 'Al Jazeera Global', url: 'https://www.aljazeera.com/xml/rss/all.xml' },
-    { id: 'scmp', name: 'SCMP', url: 'https://www.scmp.com/rss/91/feed' },
-    { id: 'nikkei', name: 'Nikkei Asia', url: 'https://asia.nikkei.com/rss/feed/category/53' },
-    { id: 'reuters_asia', name: 'Reuters Tech', url: 'https://moxie.foxnews.com/google-publisher/tech.xml' }, // Fallback since Reuters RSS is closed
-    { id: 'thai_pbs', name: 'Thai PBS', url: 'https://www.thaipbs.or.th/rss/news' },
-    { id: 'diplomat', name: 'The Diplomat', url: 'https://thediplomat.com/feed/' },
-    { id: 'hindu', name: 'The Hindu', url: 'https://www.thehindu.com/news/international/feeder/default.rss' },
-    { id: 'xinhua', name: 'Xinhua', url: 'http://www.xinhuanet.com/english/rss/worldrss.xml' }
+export const KEYWORD_GROUPS = [
+    { tag: 'strikes', weight: 22, terms: ['strike', 'missile', 'bomb', 'explosion', 'airstrike', 'drone', 'intercept', 'retaliation', 'attack', 'shelling', 'barrage'] },
+    { tag: 'conflict', weight: 20, terms: ['iran', 'israel', 'irgc', 'idf', 'hezbollah', 'houthi', 'hamas', 'military', 'war', 'ceasefire', 'escalation', 'tensions'] },
+    { tag: 'nuclear', weight: 18, terms: ['nuclear', 'enrichment', 'uranium', 'iaea', 'centrifuge', 'natanz', 'fordow', 'breakout'] },
+    { tag: 'airspace', weight: 18, terms: ['airspace', 'flight', 'airport', 'airline', 'aviation', 'reroute', 'diversion', 'suspended', 'cancelled', 'no-fly'] },
+    { tag: 'naval', weight: 16, terms: ['hormuz', 'strait', 'navy', 'naval', 'carrier', 'warship', 'fleet', 'persian gulf', 'gulf of oman', 'red sea'] },
+    { tag: 'sanctions', weight: 14, terms: ['sanction', 'embargo', 'swift', 'treasury', 'ofac', 'blacklist', 'waiver', 'exemption'] },
+    { tag: 'diplomacy', weight: 12, terms: ['diplomacy', 'negotiation', 'talks', 'un security council', 'foreign minister', 'ambassador', 'summit', 'jcpoa'] },
+    { tag: 'energy', weight: 12, terms: ['oil', 'crude', 'brent', 'opec', 'gas', 'pipeline', 'energy', 'petroleum', 'lng', 'refinery'] },
+    { tag: 'proxy', weight: 14, terms: ['proxy', 'militia', 'yemen', 'iraq', 'syria', 'lebanon', 'axis of resistance', 'pmu', 'quds force'] },
+    { tag: 'humanitarian', weight: 10, terms: ['civilian', 'casualty', 'refugee', 'displacement', 'humanitarian', 'aid', 'crisis', 'shelter'] }
 ];
 
-// Fallback logic if the active sources list is empty
-const DEFAULT_URLS = [
-    'http://feeds.bbci.co.uk/news/world/asia/rss.xml',
-    'https://www.bangkokpost.com/rss/data/news.xml',
-    'https://asia.nikkei.com/rss/feed/category/53'
+export const buildGoogleNewsSearchUrl = (query, locale = 'en-US') => {
+    const [language = 'en', country = 'US'] = locale.split('-');
+    return `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=${language}&gl=${country}&ceid=${country}:${language}`;
+};
+
+export const INTELLIGENCE_SOURCES = [
+    { id: 'bbc_world', name: 'BBC World', url: 'https://feeds.bbci.co.uk/news/world/rss.xml', group: 'global', trustScore: 14 },
+    { id: 'bbc_middleeast', name: 'BBC Middle East', url: 'https://feeds.bbci.co.uk/news/world/middle_east/rss.xml', group: 'middle-east', trustScore: 15 },
+    { id: 'bbc_business', name: 'BBC Business', url: 'https://feeds.bbci.co.uk/news/business/rss.xml', group: 'global', trustScore: 12 },
+    { id: 'aljazeera', name: 'Al Jazeera', url: 'https://www.aljazeera.com/xml/rss/all.xml', group: 'middle-east', trustScore: 14 },
+    { id: 'guardian_world', name: 'Guardian World', url: 'https://www.theguardian.com/world/rss', group: 'global', trustScore: 12 },
+    { id: 'reuters_world', name: 'Reuters World', url: 'https://www.reutersagency.com/feed/', group: 'global', trustScore: 15 },
+    { id: 'ap_mideast', name: 'AP Middle East', url: 'https://rsshub.app/apnews/topics/middle-east', group: 'middle-east', trustScore: 14 },
+    { id: 'toi', name: 'Times of Israel', url: 'https://www.timesofisrael.com/feed/', group: 'middle-east', trustScore: 12 },
+    { id: 'cna', name: 'Channel NewsAsia', url: 'https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml', group: 'asia', trustScore: 11 },
+    { id: 'nikkei', name: 'Nikkei Asia', url: 'https://asia.nikkei.com/rss/feed', group: 'asia', trustScore: 10 },
+    { id: 'bangkok_post', name: 'Bangkok Post', url: 'https://www.bangkokpost.com/rss/data/news.xml', group: 'thailand', trustScore: 9 },
+    { id: 'diplomat', name: 'The Diplomat', url: 'https://thediplomat.com/feed/', group: 'asia', trustScore: 10 }
 ];
 
-export const fetchLiveNews = async (activeUrls = null) => {
-    try {
-        const urlsToFetch = activeUrls && activeUrls.length > 0 ? activeUrls : DEFAULT_URLS;
+export const APAC_SOURCES = INTELLIGENCE_SOURCES;
 
-        // Due to rate limits, we slice to max 3 feeds simultaneously
-        const fetchSubset = urlsToFetch.slice(0, 3);
-
-        const promises = fetchSubset.map(async (url) => {
-            try {
-                // Try aggressive cache-busting XML fetch first
-                const freshUrl = url + (url.includes('?') ? '&' : '?') + 'cb=' + Date.now();
-                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(freshUrl)}`;
-                const response = await axios.get(proxyUrl);
-
-                if (response.data && response.data.contents && response.data.contents.includes('<rss')) {
-                    return { data: response.data.contents, url: url, isXml: true };
-                }
-                throw new Error("Invalid proxy response");
-            } catch (err) {
-                // Fallback to rss2json (cached but extremely reliable for strict domains like BBC)
-                try {
-                    const fallbackUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`;
-                    const res = await axios.get(fallbackUrl);
-                    if (res.data && res.data.items) {
-                        return { data: res.data, url: url, isXml: false };
-                    }
-                    return null;
-                } catch (fallbackErr) {
-                    console.warn(`Both proxy and fallback failed for ${url}`);
-                    return null;
-                }
-            }
-        });
-
-        const responses = await Promise.all(promises);
-        const allNews = [];
-
-        const parser = new DOMParser();
-
-        for (const res of responses) {
-            if (!res || !res.data) continue;
-
-            if (res.isXml) {
-                try {
-                    const xmlDoc = parser.parseFromString(res.data, "text/xml");
-                    const titleNode = xmlDoc.querySelector("channel > title");
-                    const feedTitle = titleNode ? titleNode.textContent : 'Global News';
-
-                    const items = xmlDoc.querySelectorAll("item");
-                    // Take up to 10 items per feed to avoid overload
-                    Array.from(items).slice(0, 10).forEach(item => {
-                        const title = item.querySelector("title")?.textContent;
-                        const link = item.querySelector("link")?.textContent;
-                        const pubDateStr = item.querySelector("pubDate")?.textContent;
-                        let author = item.querySelector("author")?.textContent;
-                        if (!author) {
-                            const dcCreator = item.getElementsByTagNameNS("*", "creator");
-                            if (dcCreator.length > 0) author = dcCreator[0].textContent;
-                        }
-
-                        if (title && link) {
-                            allNews.push({
-                                title: title,
-                                link: link,
-                                pubDate: pubDateStr ? new Date(pubDateStr) : new Date(),
-                                source: author || feedTitle
-                            });
-                        }
-                    });
-                } catch (parseError) {
-                    console.error("Error parsing XML feed:", parseError);
-                }
-            } else {
-                // Parse JSON from rss2json
-                const feedTitle = res.data.feed?.title || 'Global News';
-                for (const item of res.data.items) {
-                    allNews.push({
-                        title: item.title,
-                        link: item.link,
-                        pubDate: new Date(item.pubDate),
-                        source: item.author || feedTitle
-                    });
-                }
-            }
-        }
-
-        allNews.sort((a, b) => b.pubDate - a.pubDate);
-
-        // Deduplicate similar titles before returning
-        const uniqueNews = [];
-        const seenTitles = new Set();
-        for (const item of allNews) {
-            if (!seenTitles.has(item.title)) {
-                seenTitles.add(item.title);
-                uniqueNews.push(item);
-            }
-        }
-
-        if (uniqueNews.length === 0) throw new Error("No news parsed");
-
-        return uniqueNews.slice(0, 15); // Keep top 15 breaking headlines
-
-    } catch (error) {
-        console.warn("Error fetching live news via RSS, using intelligent fallbacks:", error);
-        // Fallback robust data so the dashboard is never empty when disconnected
-        return [
-            { title: "ASEAN Finance Ministers agree on cross-border QR payments integration", link: "#", pubDate: new Date(), source: "ASEAN Briefing" },
-            { title: "Thailand's digital economy projected to reach $50B by 2025, driven by e-commerce", link: "#", pubDate: new Date(Date.now() - 3600000), source: "Nikkei Asia" },
-            { title: "TSMC expansion in Kumamoto officially opens, signaling shift in supply chains", link: "#", pubDate: new Date(Date.now() - 7200000), source: "TechCrunch" },
-            { title: "Indonesia introduces new tax incentives for EV manufacturing investments", link: "#", pubDate: new Date(Date.now() - 10800000), source: "Reuters Tech" },
-            { title: "Singapore Central Bank launches quantum computing safety guidelines for financial sector", link: "#", pubDate: new Date(Date.now() - 14400000), source: "CNA" },
-            { title: "Global central banks hint at synchronized rate cuts in Q3, bolstering emerging markets", link: "#", pubDate: new Date(Date.now() - 15000000), source: "Global Macro Insights" },
-            { title: "New AI regulations drafted by European Parliament face pushback from tech giants", link: "#", pubDate: new Date(Date.now() - 18000000), source: "Tech Policy Daily" },
-            { title: "Supply chain resilience: Tech manufacturers diversifying away from single-source dependencies", link: "#", pubDate: new Date(Date.now() - 21000000), source: "Supply Chain Review" },
-            { title: "Green energy infrastructure investments surging in developing economies, World Bank reports", link: "#", pubDate: new Date(Date.now() - 25000000), source: "World Bank Data" },
-            { title: "Rising inflation in key Western hubs puts pressure on international trade agreements", link: "#", pubDate: new Date(Date.now() - 28000000), source: "Global Trade Watch" }
-        ];
+export const BRIEFING_DEFINITIONS = {
+    iranStrikes: {
+        id: 'iranStrikes',
+        title: 'Iran Strikes & Military',
+        description: 'Live strikes, missile launches, drone attacks, IRGC operations, and IDF responses across the theater.',
+        queries: [
+            'Iran Israel strike OR missile OR drone attack',
+            'IRGC military operation OR launch OR retaliation',
+            'Iran airstrike OR bombing OR intercept',
+            'Israel Iran war escalation'
+        ],
+        locale: 'en-US',
+        sourceFilter: (source) => ['global', 'middle-east'].includes(source.group),
+        focusTags: ['strikes', 'conflict', 'airspace', 'naval'],
+        primarySources: [
+            { label: 'ACLED', url: 'https://acleddata.com/' },
+            { label: 'ISW', url: 'https://www.understandingwar.org/' },
+            { label: 'Janes', url: 'https://www.janes.com/' }
+        ],
+        fallbackItems: [
+            { title: 'Tracking live strike activity, IRGC operations, and IDF responses.', link: 'https://www.understandingwar.org/', source: 'Monitor', pubDate: new Date(), tags: ['strikes', 'conflict'] }
+        ]
+    },
+    iranDiplomacy: {
+        id: 'iranDiplomacy',
+        title: 'Diplomacy & Sanctions',
+        description: 'Nuclear talks, JCPOA status, UN Security Council, sanctions enforcement, and diplomatic channels.',
+        queries: [
+            'Iran nuclear talks OR JCPOA OR enrichment',
+            'Iran sanctions OR OFAC OR embargo',
+            'Iran diplomacy OR UN Security Council OR IAEA',
+            'Iran foreign minister OR ambassador OR negotiations'
+        ],
+        locale: 'en-US',
+        sourceFilter: (source) => ['global', 'middle-east'].includes(source.group),
+        focusTags: ['nuclear', 'sanctions', 'diplomacy', 'conflict'],
+        primarySources: [
+            { label: 'IAEA', url: 'https://www.iaea.org/' },
+            { label: 'US Treasury', url: 'https://ofac.treasury.gov/' },
+            { label: 'UN News', url: 'https://news.un.org/en/' }
+        ],
+        fallbackItems: [
+            { title: 'Monitoring nuclear program status, sanctions regime, and diplomatic developments.', link: 'https://www.iaea.org/', source: 'Monitor', pubDate: new Date(), tags: ['nuclear', 'diplomacy'] }
+        ]
+    },
+    gulfSecurity: {
+        id: 'gulfSecurity',
+        title: 'Gulf & Strait of Hormuz',
+        description: 'Naval movements, strait traffic, airspace closures, Gulf state responses, and energy infrastructure threats.',
+        queries: [
+            '"Strait of Hormuz" OR "Persian Gulf" naval OR shipping',
+            'Gulf airspace closure OR flight reroute Iran',
+            'Iran navy OR IRGC naval OR tanker seizure',
+            'Emirates Etihad Qatar Airways flights Iran'
+        ],
+        locale: 'en-AE',
+        sourceFilter: (source) => ['global', 'middle-east'].includes(source.group),
+        focusTags: ['naval', 'airspace', 'energy', 'conflict'],
+        primarySources: [
+            { label: 'MarineTraffic', url: 'https://www.marinetraffic.com/' },
+            { label: 'FlightRadar24', url: 'https://www.flightradar24.com/' },
+            { label: 'OpenSky', url: 'https://opensky-network.org/' }
+        ],
+        fallbackItems: [
+            { title: 'Tracking Gulf naval activity, strait shipping, and airspace disruptions.', link: 'https://www.marinetraffic.com/', source: 'Monitor', pubDate: new Date(), tags: ['naval', 'airspace'] }
+        ]
+    },
+    proxyTheater: {
+        id: 'proxyTheater',
+        title: 'Proxy & Regional Spillover',
+        description: 'Hezbollah, Houthi, Iraqi militias, Syrian theater, and axis-of-resistance activity across the region.',
+        queries: [
+            'Hezbollah Lebanon Israel OR attack OR rocket',
+            'Houthi Yemen Red Sea OR shipping OR attack',
+            'Iraq militia Iran proxy OR PMU',
+            'Syria Iran IRGC OR Israel strike'
+        ],
+        locale: 'en-US',
+        sourceFilter: (source) => ['global', 'middle-east'].includes(source.group),
+        focusTags: ['proxy', 'conflict', 'strikes', 'humanitarian'],
+        primarySources: [
+            { label: 'ReliefWeb', url: 'https://reliefweb.int/' },
+            { label: 'ACLED', url: 'https://acleddata.com/' },
+            { label: 'Crisis Group', url: 'https://www.crisisgroup.org/' }
+        ],
+        fallbackItems: [
+            { title: 'Monitoring proxy forces, regional spillover, and axis-of-resistance movements.', link: 'https://www.crisisgroup.org/', source: 'Monitor', pubDate: new Date(), tags: ['proxy', 'conflict'] }
+        ]
+    },
+    energyMarkets: {
+        id: 'energyMarkets',
+        title: 'Energy & Oil Impact',
+        description: 'Oil prices, OPEC response, energy supply disruptions, sanctions impact on global markets.',
+        queries: [
+            'oil price Iran conflict OR sanctions OR supply',
+            'OPEC Iran production OR output',
+            'Brent crude Iran OR Middle East tension',
+            'energy supply disruption Iran OR Gulf'
+        ],
+        locale: 'en-US',
+        sourceFilter: (source) => ['global', 'middle-east'].includes(source.group),
+        focusTags: ['energy', 'sanctions', 'conflict', 'naval'],
+        primarySources: [
+            { label: 'OPEC', url: 'https://www.opec.org/' },
+            { label: 'EIA', url: 'https://www.eia.gov/' },
+            { label: 'Bloomberg', url: 'https://www.bloomberg.com/energy' }
+        ],
+        fallbackItems: [
+            { title: 'Tracking energy market impacts from Iran conflict and sanctions enforcement.', link: 'https://www.opec.org/', source: 'Monitor', pubDate: new Date(), tags: ['energy', 'sanctions'] }
+        ]
     }
 };
+
+const sourceById = new Map(INTELLIGENCE_SOURCES.map((source) => [source.id, source]));
+
+const normalizeTitle = (value = '') => value.toLowerCase().replace(/https?:\/\/\S+/g, '').replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+
+const resolveDate = (value) => {
+    if (!value) return new Date();
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+};
+
+const withCacheBuster = (url) => `${url}${url.includes('?') ? '&' : '?'}cb=${Date.now()}`;
+
+const makeSourceWindow = (activeSourceIds, filterFn, limit = 4) => {
+    const idSet = new Set(Array.isArray(activeSourceIds) ? activeSourceIds : DEFAULT_SOURCE_IDS);
+    return INTELLIGENCE_SOURCES
+        .filter((source) => idSet.has(source.id) && filterFn(source))
+        .sort((a, b) => b.trustScore - a.trustScore)
+        .slice(0, limit);
+};
+
+const buildQuerySources = (briefing) => (
+    briefing.queries.map((query, index) => ({
+        id: `${briefing.id}-query-${index}`,
+        name: `Search: ${briefing.title}`,
+        url: buildGoogleNewsSearchUrl(query, briefing.locale),
+        group: 'query',
+        trustScore: 9
+    }))
+);
+
+const extractAtomLink = (entry) => {
+    const preferred = entry.querySelector('link[rel="alternate"]');
+    if (preferred?.getAttribute('href')) return preferred.getAttribute('href');
+
+    const firstLink = entry.querySelector('link');
+    if (firstLink?.getAttribute('href')) return firstLink.getAttribute('href');
+
+    return firstLink?.textContent || '';
+};
+
+const readKeywordSignals = (title, focusTags = []) => {
+    const lowerTitle = (title || '').toLowerCase();
+    const matched = [];
+    let score = 0;
+
+    KEYWORD_GROUPS.forEach((group) => {
+        const matchedTerms = group.terms.filter((term) => lowerTitle.includes(term));
+        if (matchedTerms.length === 0) return;
+
+        const focusBoost = focusTags.includes(group.tag) ? 8 : 0;
+        matched.push(group.tag);
+        score += group.weight + focusBoost + matchedTerms.length;
+    });
+
+    return {
+        tags: matched.slice(0, 3),
+        score
+    };
+};
+
+const scoreFeedItem = (item, source, focusTags) => {
+    const ageHours = Math.max(0, (Date.now() - item.pubDate.getTime()) / 36e5);
+    const freshness = Math.max(0, 24 - ageHours) * 1.2;
+    const keywordSignals = readKeywordSignals(item.title, focusTags);
+
+    return {
+        ...item,
+        tags: item.tags?.length ? item.tags : keywordSignals.tags,
+        score: source.trustScore + freshness + keywordSignals.score
+    };
+};
+
+const parseXmlFeed = (xml, source) => {
+    const parser = new DOMParser();
+    const document = parser.parseFromString(xml, 'text/xml');
+
+    if (document.querySelector('parsererror')) {
+        return [];
+    }
+
+    const feedTitle = document.querySelector('channel > title')?.textContent
+        || document.querySelector('feed > title')?.textContent
+        || source.name;
+
+    const rssItems = Array.from(document.querySelectorAll('item')).map((item) => {
+        const title = item.querySelector('title')?.textContent?.trim();
+        const link = item.querySelector('link')?.textContent?.trim();
+        const pubDate = resolveDate(item.querySelector('pubDate')?.textContent);
+        const sourceLabel = item.querySelector('source')?.textContent?.trim()
+            || item.querySelector('author')?.textContent?.trim()
+            || feedTitle;
+
+        if (!title || !link) return null;
+
+        return {
+            title,
+            link,
+            pubDate,
+            source: sourceLabel
+        };
+    });
+
+    if (rssItems.some(Boolean)) {
+        return rssItems.filter(Boolean);
+    }
+
+    return Array.from(document.querySelectorAll('entry')).map((entry) => {
+        const title = entry.querySelector('title')?.textContent?.trim();
+        const link = extractAtomLink(entry)?.trim();
+        const pubDate = resolveDate(entry.querySelector('updated')?.textContent || entry.querySelector('published')?.textContent);
+
+        if (!title || !link) return null;
+
+        return {
+            title,
+            link,
+            pubDate,
+            source: feedTitle
+        };
+    }).filter(Boolean);
+};
+
+const parseJsonFallback = (payload, source) => {
+    if (!payload?.items) return [];
+
+    const feedTitle = payload.feed?.title || source.name;
+
+    return payload.items.map((item) => ({
+        title: item.title,
+        link: item.link,
+        pubDate: resolveDate(item.pubDate),
+        source: item.author || feedTitle
+    })).filter((item) => item.title && item.link);
+};
+
+const fetchFeedItems = async (source) => {
+    try {
+        const proxied = `${FEED_PROXY}${encodeURIComponent(withCacheBuster(source.url))}`;
+        const response = await axios.get(proxied, { timeout: 15000 });
+        const xml = response.data?.contents;
+
+        if (xml) {
+            const parsed = parseXmlFeed(xml, source);
+            if (parsed.length > 0) return parsed;
+        }
+    } catch (error) {
+        console.warn(`Primary feed fetch failed for ${source.name}`, error.message);
+    }
+
+    try {
+        const fallbackUrl = `${FEED_FALLBACK}${encodeURIComponent(source.url)}`;
+        const response = await axios.get(fallbackUrl, { timeout: 15000 });
+        return parseJsonFallback(response.data, source);
+    } catch (error) {
+        console.warn(`Fallback feed fetch failed for ${source.name}`, error.message);
+        return [];
+    }
+};
+
+const mergeAndRankItems = (items, sourceIndex, focusTags = [], limit = 15) => {
+    const seenTitles = new Set();
+
+    return items
+        .map((item) => {
+            const source = sourceIndex.get(item.sourceId) || { trustScore: 8, name: item.source };
+            return scoreFeedItem(item, source, focusTags);
+        })
+        .sort((a, b) => {
+            if (b.score === a.score) return b.pubDate - a.pubDate;
+            return b.score - a.score;
+        })
+        .filter((item) => {
+            const normalized = normalizeTitle(item.title);
+            if (!normalized || seenTitles.has(normalized)) return false;
+            seenTitles.add(normalized);
+            return true;
+        })
+        .slice(0, limit);
+};
+
+const gatherFeeds = async (sources, focusTags = [], limit = 15) => {
+    const sourceIndex = new Map(sources.map((source) => [source.id, source]));
+    const batches = await Promise.all(
+        sources.map(async (source) => {
+            const items = await fetchFeedItems(source);
+            return items.map((item) => ({ ...item, sourceId: source.id }));
+        })
+    );
+
+    return mergeAndRankItems(batches.flat(), sourceIndex, focusTags, limit);
+};
+
+const deriveBriefingStats = (items) => {
+    const tagCounts = new Map();
+
+    items.forEach((item) => {
+        item.tags?.forEach((tag) => {
+            tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+        });
+    });
+
+    const dominantTags = Array.from(tagCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([tag]) => tag);
+
+    return {
+        total: items.length,
+        highPriority: items.filter((item) => item.score >= 36).length,
+        dominantTags,
+        lastUpdated: new Date()
+    };
+};
+
+export const fetchBriefing = async (briefingId, activeSourceIds = null) => {
+    try {
+        return await fetchBackendJson(`/api/briefings/${briefingId}`, {
+            sourceIds: Array.isArray(activeSourceIds) ? activeSourceIds.join(',') : undefined
+        });
+    } catch (error) {
+        console.warn(`Backend briefing fetch failed for ${briefingId}`, error.message);
+    }
+
+    const briefing = BRIEFING_DEFINITIONS[briefingId];
+
+    if (!briefing) {
+        throw new Error(`Unknown briefing: ${briefingId}`);
+    }
+
+    const contextualSources = makeSourceWindow(activeSourceIds, briefing.sourceFilter, 4);
+    const querySources = buildQuerySources(briefing);
+    const rankedItems = await gatherFeeds([...contextualSources, ...querySources], briefing.focusTags, 6);
+    const items = rankedItems;
+    const stats = deriveBriefingStats(items);
+
+    return {
+        ...briefing,
+        items,
+        stats,
+        summary: stats.total > 0
+            ? `${stats.highPriority || stats.total} elevated signals across ${stats.dominantTags.length || 1} dominant themes.`
+            : 'No live items were returned on the latest pull. Use the official source links while the feed refreshes.'
+    };
+};
+
+export const fetchLiveNews = async (activeSourceIds = null) => {
+    try {
+        return await fetchBackendJson('/api/ticker', {
+            sourceIds: Array.isArray(activeSourceIds) ? activeSourceIds.join(',') : undefined
+        });
+    } catch (error) {
+        console.warn('Backend ticker fetch failed', error.message);
+    }
+
+    const sources = makeSourceWindow(activeSourceIds, () => true, 8);
+    const items = await gatherFeeds(sources, ['strikes', 'conflict', 'nuclear', 'airspace', 'naval', 'sanctions', 'energy', 'proxy'], 20);
+
+    return items;
+};
+
+export const getSourceById = (sourceId) => sourceById.get(sourceId);

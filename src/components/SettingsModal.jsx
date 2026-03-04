@@ -1,13 +1,18 @@
 import React from 'react';
-import { APAC_SOURCES } from '../services/liveNews';
+import { INTELLIGENCE_SOURCES } from '../services/liveNews';
 import { X, Check } from 'lucide-react';
 
 const SettingsModal = ({ isOpen, onClose, activeSources, toggleSource, setAllSources }) => {
     if (!isOpen) return null;
 
+    const groupCounts = INTELLIGENCE_SOURCES.reduce((acc, source) => {
+        acc[source.group] = (acc[source.group] || 0) + 1;
+        return acc;
+    }, {});
+
     return (
-        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div className="grid-panel" style={{ width: '800px', maxWidth: '90vw', maxHeight: '85vh', backgroundColor: '#111', padding: 0 }}>
+        <div className="modal-overlay">
+            <div className="grid-panel" style={{ width: '800px', maxWidth: '90vw', maxHeight: '85vh', padding: 0 }}>
 
                 {/* Header */}
                 <div style={{ padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333' }}>
@@ -26,14 +31,16 @@ const SettingsModal = ({ isOpen, onClose, activeSources, toggleSource, setAllSou
 
                 {/* Sub-Filters Placeholder */}
                 <div style={{ padding: '16px 24px', display: 'flex', gap: '12px', borderBottom: '1px solid #222' }}>
-                    <span style={{ fontSize: '0.75rem', padding: '6px 16px', borderRadius: '20px', border: '1px solid #10b981', color: '#10b981', background: 'rgba(16, 185, 129, 0.1)' }}>ASIA-PACIFIC</span>
-                    <span style={{ fontSize: '0.75rem', padding: '6px 16px', borderRadius: '20px', border: '1px solid #333', color: '#888' }}>MIDDLE EAST</span>
-                    <span style={{ fontSize: '0.75rem', padding: '6px 16px', borderRadius: '20px', border: '1px solid #333', color: '#888' }}>GLOBAL</span>
+                    <span style={{ fontSize: '0.75rem', padding: '6px 16px', borderRadius: '20px', border: '1px solid #10b981', color: '#10b981', background: 'rgba(16, 185, 129, 0.1)' }}>GLOBAL {groupCounts.global || 0}</span>
+                    <span style={{ fontSize: '0.75rem', padding: '6px 16px', borderRadius: '20px', border: '1px solid #333', color: '#888' }}>ASIA {groupCounts.asia || 0}</span>
+                    <span style={{ fontSize: '0.75rem', padding: '6px 16px', borderRadius: '20px', border: '1px solid #333', color: '#888' }}>MIDDLE EAST {groupCounts['middle-east'] || 0}</span>
+                    <span style={{ fontSize: '0.75rem', padding: '6px 16px', borderRadius: '20px', border: '1px solid #333', color: '#888' }}>THAILAND {groupCounts.thailand || 0}</span>
+                    <span style={{ fontSize: '0.75rem', padding: '6px 16px', borderRadius: '20px', border: '1px solid #333', color: '#888' }}>URBAN {groupCounts.urban || 0}</span>
                 </div>
 
                 {/* Grid of Sources */}
                 <div style={{ padding: '24px', overflowY: 'auto', flex: 1, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
-                    {APAC_SOURCES.map(source => {
+                    {INTELLIGENCE_SOURCES.map((source) => {
                         const isActive = activeSources.includes(source.id);
                         return (
                             <div
@@ -59,9 +66,14 @@ const SettingsModal = ({ isOpen, onClose, activeSources, toggleSource, setAllSou
                                 }}>
                                     {isActive && <Check size={12} color="#000" strokeWidth={3} />}
                                 </div>
-                                <span style={{ fontSize: '0.85rem', color: isActive ? '#fff' : '#888', fontWeight: isActive ? 500 : 400 }}>
-                                    {source.name}
-                                </span>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <span style={{ fontSize: '0.85rem', color: isActive ? '#fff' : '#888', fontWeight: isActive ? 500 : 400 }}>
+                                        {source.name}
+                                    </span>
+                                    <span style={{ fontSize: '0.7rem', color: '#666', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                        {source.group}
+                                    </span>
+                                </div>
                             </div>
                         );
                     })}
@@ -69,7 +81,7 @@ const SettingsModal = ({ isOpen, onClose, activeSources, toggleSource, setAllSou
 
                 {/* Footer Controls */}
                 <div style={{ padding: '16px 24px', borderTop: '1px solid #333', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.85rem', color: '#888' }}>{activeSources.length}/{APAC_SOURCES.length} enabled</span>
+                    <span style={{ fontSize: '0.85rem', color: '#888' }}>{activeSources.length}/{INTELLIGENCE_SOURCES.length} enabled</span>
                     <div style={{ display: 'flex', gap: '12px' }}>
                         <button
                             onClick={() => setAllSources(true)}
