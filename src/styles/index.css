@@ -521,6 +521,8 @@ body {
    MARKET RADAR
    ═══════════════════════════════════════════ */
 
+.radar-groups { display: flex; flex-direction: column; gap: 8px; }
+.radar-group-label { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 1.2px; color: var(--accent-blue); font-weight: 700; margin-bottom: 2px; }
 .radar-list { list-style: none; display: flex; flex-direction: column; gap: 4px; }
 .radar-item {
   display: flex; align-items: center; justify-content: space-between;

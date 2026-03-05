@@ -3,6 +3,24 @@ import { fetchMarketRadar } from '../services/marketData';
 import { Activity, RefreshCw, TrendingUp, TrendingDown } from 'lucide-react';
 import { useLiveResource } from '../hooks/useLiveResource';
 
+const CATEGORIES = [
+    { label: 'COMMODITIES', match: (s) => ['Gold', 'Brent Oil', 'WTI Crude'].includes(s) },
+    { label: 'INDICES', match: (s) => s.startsWith('S&P') || s.startsWith('TASI') || s.startsWith('TA-125') },
+    { label: 'CRYPTO', match: (s) => ['BTC', 'ETH'].includes(s) },
+    { label: 'FX RATES', match: (s) => s.includes('/') },
+];
+
+const categorize = (items) => {
+    const groups = CATEGORIES.map((cat) => ({
+        label: cat.label,
+        items: items.filter((item) => cat.match(item.symbol))
+    }));
+    const matched = new Set(groups.flatMap((g) => g.items.map((i) => i.symbol)));
+    const rest = items.filter((item) => !matched.has(item.symbol));
+    if (rest.length > 0) groups.push({ label: 'OTHER', items: rest });
+    return groups.filter((g) => g.items.length > 0);
+};
+
 const MarketRadarPanel = () => {
     const fetcher = useCallback(() => fetchMarketRadar(), []);
     const {
@@ -19,6 +37,7 @@ const MarketRadarPanel = () => {
         isUsable: (items) => Array.isArray(items) && items.length > 0
     });
     const statusLabel = isStale ? 'STALE' : (error && markets.length === 0 ? 'OFFLINE' : 'LIVE');
+    const groups = categorize(markets);
 
     return (
         <div className="bottom-card flex-column">
@@ -37,36 +56,41 @@ const MarketRadarPanel = () => {
                     <span className={`live-pill ${statusLabel !== 'LIVE' ? 'live-pill-muted' : ''}`}>{statusLabel}</span>
                 </div>
             </div>
-            <div className="panel-content" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div className="panel-content" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <div className="panel-lead" style={{ marginBottom: 0 }}>
                     {lastUpdated ? `Last live update ${new Date(lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Waiting for first live quote...'}
                 </div>
-                <ul className="radar-list">
-                    {markets.map((item, index) => (
-                        <li key={index} className="radar-item">
-                            <div className="radar-token">
-                                <strong>{item.symbol}</strong>
-                            </div>
-                            <div className="radar-price">
-                                <span>{item.price}</span>
-                                <span className={`change ${item.isPositive ? 'positive' : 'negative'}`}>
-                                    {item.isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                                    {item.changePerc}
-                                </span>
-                            </div>
-                        </li>
-                    ))}
-                </ul>
-
-                {
-                    markets.length === 0 && (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                            <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>
-                                {isLoading ? 'Connecting to live markets...' : 'No live market data available right now.'}
-                            </span>
+                <div className="radar-groups">
+                    {groups.map((group) => (
+                        <div key={group.label} className="radar-group">
+                            <div className="radar-group-label">{group.label}</div>
+                            <ul className="radar-list">
+                                {group.items.map((item, index) => (
+                                    <li key={index} className="radar-item">
+                                        <div className="radar-token">
+                                            <strong>{item.symbol}</strong>
+                                        </div>
+                                        <div className="radar-price">
+                                            <span>{item.price}</span>
+                                            <span className={`change ${item.isPositive ? 'positive' : 'negative'}`}>
+                                                {item.isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                                                {item.changePerc}
+                                            </span>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
                         </div>
-                    )
-                }
+                    ))}
+                </div>
+
+                {markets.length === 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>
+                            {isLoading ? 'Connecting to live markets...' : 'No live market data available right now.'}
+                        </span>
+                    </div>
+                )}
             </div>
         </div>
     );

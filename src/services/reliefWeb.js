@@ -60,8 +60,30 @@ const GLOBAL_HOTSPOTS = [
         status: 'Shipping and logistics exposed',
         operationalFocus: 'Watch reroutes, insurance costs, and port throughput.',
         coordinates: [42.6105, 15.3694]
+    },
+    {
+        id: 'hotspot-syria',
+        title: 'Syria Instability',
+        country: 'Syria',
+        type: 'Post-conflict instability',
+        severity: 'High',
+        status: 'Political transition and humanitarian needs',
+        operationalFocus: 'Watch cross-border dynamics, reconstruction, and displacement.',
+        coordinates: [38.9968, 34.8021]
+    },
+    {
+        id: 'hotspot-lebanon',
+        title: 'Lebanon Crisis',
+        country: 'Lebanon',
+        type: 'Economic and security crisis',
+        severity: 'High',
+        status: 'Economic collapse and regional spillover risk',
+        operationalFocus: 'Monitor currency, infrastructure, and border security.',
+        coordinates: [35.8623, 33.8547]
     }
 ];
+
+const ALERT_COLORS = { Red: 'Severe', Orange: 'High', Green: 'Moderate' };
 
 const toFeature = (hotspot) => ({
     type: 'Feature',
@@ -81,54 +103,55 @@ const toFeature = (hotspot) => ({
     }
 });
 
+const buildGdacsDateRange = () => {
+    const to = new Date();
+    const from = new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const fmt = (d) => d.toISOString().split('T')[0];
+    return { from: fmt(from), to: fmt(to) };
+};
+
 export const fetchConflictsAndCrises = async () => {
     const features = GLOBAL_HOTSPOTS.map(toFeature);
 
+    // Try GDACS API for live disaster/crisis events (free, no auth)
     try {
-        const response = await axios.post(
-            'https://api.reliefweb.int/v2/disasters',
-            {
-                profile: 'full',
-                limit: 12,
-                filter: {
-                    operator: 'AND',
-                    conditions: [{ field: 'status', value: 'current' }]
-                }
-            },
+        const dates = buildGdacsDateRange();
+        const response = await axios.get(
+            `https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?eventlist=EQ,TC,FL,VO,WF,DR&fromDate=${dates.from}&toDate=${dates.to}&alertlevel=Orange;Red`,
             { timeout: 15000 }
         );
 
-        const apiFeatures = (response.data?.data || [])
-            .filter((item) => item.fields?.primary_country?.location)
-            .map((item) => {
-                const country = item.fields.primary_country;
-                const typeLabel = item.fields.type?.map((type) => type.name).join(', ') || 'Crisis';
+        const gdacsFeatures = (response.data?.features || [])
+            .filter((f) => f.geometry?.coordinates)
+            .slice(0, 15)
+            .map((f) => {
+                const props = f.properties || {};
+                const coords = f.geometry.coordinates;
+                const alertLevel = props.alertlevel || 'Green';
+                const countries = (props.affectedcountries || []).map((c) => c.countryname).join(', ');
 
                 return {
                     type: 'Feature',
-                    geometry: {
-                        type: 'Point',
-                        coordinates: [country.location.lon, country.location.lat]
-                    },
+                    geometry: { type: 'Point', coordinates: [coords[0], coords[1]] },
                     properties: {
-                        id: item.id,
-                        title: item.fields.name,
-                        country: country.name,
+                        id: `gdacs-${props.eventtype}-${props.eventid}`,
+                        title: props.name || props.description || 'GDACS Event',
+                        country: countries || props.country || 'Unknown',
                         type: 'conflict',
-                        types: typeLabel,
-                        severity: 'Live',
-                        status: 'Reported by ReliefWeb',
-                        operationalFocus: 'Use as a humanitarian context signal rather than a complete conflict feed.'
+                        types: props.eventtype || 'Crisis',
+                        severity: ALERT_COLORS[alertLevel] || 'Moderate',
+                        status: props.severitydata?.severitytext || `Alert: ${alertLevel}`,
+                        operationalFocus: props.description || 'Live event reported by GDACS.'
                     }
                 };
             });
 
         return {
             type: 'FeatureCollection',
-            features: [...features, ...apiFeatures]
+            features: [...features, ...gdacsFeatures]
         };
     } catch (error) {
-        console.warn('ReliefWeb live feed unavailable, using curated hotspots.', error.message);
+        console.warn('GDACS live feed unavailable, using curated hotspots.', error.message);
         return {
             type: 'FeatureCollection',
             features
