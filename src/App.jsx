@@ -60,7 +60,6 @@ function App() {
   };
 
   const sourceSetKey = activeSources.join(',');
-  const activeUrls = activeSources.map(id => INTELLIGENCE_SOURCES.find(s => s.id === id)?.url).filter(Boolean);
 
   return (
     <>
@@ -171,8 +170,8 @@ function App() {
             </>
           ) : (
             <>
-              <RegionalNewsPanel regionName="Thailand" title="Thailand Tech Ecosystem" activeUrls={activeUrls} />
-              <RegionalNewsPanel regionName="DEPA" title="depa & MDES Directives" activeUrls={activeUrls} />
+              <RegionalNewsPanel regionName="Thailand" title="Thailand Tech Ecosystem" activeSourceIds={activeSources} />
+              <RegionalNewsPanel regionName="DEPA" title="depa & MDES Directives" activeSourceIds={activeSources} />
             </>
           )}
         </div>
@@ -193,8 +192,8 @@ function App() {
             </>
           ) : (
             <>
-              <RegionalNewsPanel regionName="SEA" title="Global Technology News" activeUrls={activeUrls} />
-              <RegionalNewsPanel regionName="Global" title="Global Macro & Policy" activeUrls={activeUrls} />
+              <RegionalNewsPanel regionName="SEA" title="Global Technology News" activeSourceIds={activeSources} />
+              <RegionalNewsPanel regionName="Global" title="Global Macro & Policy" activeSourceIds={activeSources} />
             </>
           )}
         </div>

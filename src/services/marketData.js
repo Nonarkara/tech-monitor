@@ -2,7 +2,7 @@ import axios from 'axios';
 import { fetchBackendJson } from './backendClient.js';
 
 const CRYPTO_SYMBOLS = ['BTCUSDT', 'ETHUSDT'];
-const YAHOO_PROXY = 'https://corsproxy.io/?';
+const YAHOO_PROXY = 'https://api.allorigins.win/raw?url=';
 const YAHOO_BASE = 'https://query2.finance.yahoo.com/v8/finance/chart/';
 
 const YAHOO_SYMBOLS = [
@@ -54,6 +54,9 @@ const fetchYahooQuote = async (symbolEncoded) => {
     const proxied = `${YAHOO_PROXY}${encodeURIComponent(url)}`;
     const response = await axios.get(proxied, { timeout: 15000 });
     const inner = response.data;
+    if (!inner?.chart?.result?.[0]?.meta) {
+        throw new Error(`Invalid Yahoo response for ${symbolEncoded}`);
+    }
     const meta = inner.chart.result[0].meta;
     return {
         price: meta.regularMarketPrice,

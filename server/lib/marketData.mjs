@@ -49,10 +49,16 @@ const fetchYahooQuote = async (symbolEncoded) => {
     const response = await axios.get(url, {
         timeout: 15000,
         headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+            'Accept': 'application/json'
         }
     });
+
     const inner = response.data;
+    if (!inner?.chart?.result?.[0]?.meta) {
+        throw new Error(`Invalid Yahoo response for ${symbolEncoded}`);
+    }
+
     const meta = inner.chart.result[0].meta;
     return { price: meta.regularMarketPrice, previousClose: meta.chartPreviousClose || meta.regularMarketPrice };
 };

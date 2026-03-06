@@ -255,6 +255,7 @@ const parseXmlFeed = (xml, source) => {
             || feedTitle;
 
         if (!title || !link) return null;
+        if (normalizeTitle(title) === normalizeTitle(feedTitle) || title === feedTitle) return null;
 
         return {
             title,
@@ -294,7 +295,13 @@ const parseJsonFallback = (payload, source) => {
         link: item.link,
         pubDate: resolveDate(item.pubDate),
         source: item.author || feedTitle
-    })).filter((item) => item.title && item.link);
+    })).filter((item) => {
+        if (!item.title || !item.link) return false;
+        const normalizedItemTitle = normalizeTitle(item.title);
+        const normalizedFeedTitle = normalizeTitle(feedTitle);
+        if (normalizedItemTitle === normalizedFeedTitle || item.title === feedTitle) return false;
+        return true;
+    });
 };
 
 const fetchFeedItems = async (source) => {

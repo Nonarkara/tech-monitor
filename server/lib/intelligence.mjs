@@ -78,7 +78,14 @@ const parseJsonFallback = (payload, source) => {
         link: item.link,
         pubDate: resolveDate(item.pubDate),
         source: item.author || feedTitle
-    })).filter((item) => item.title && item.link);
+    })).filter((item) => {
+        if (!item.title || !item.link) return false;
+        const normalizedItemTitle = normalizeTitle(item.title);
+        const normalizedFeedTitle = normalizeTitle(feedTitle);
+        // Exclude items if rss2json improperly duplicated the feed title onto the item title
+        if (normalizedItemTitle === normalizedFeedTitle || item.title === feedTitle) return false;
+        return true;
+    });
 };
 
 const fetchFeedItems = async (source) => {
