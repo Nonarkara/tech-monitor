@@ -73,7 +73,7 @@ const Sidebar = ({
                         gap: '10px',
                         boxShadow: '0 2px 12px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.8)'
                     }}>
-                        <img src="/Logo on White BG-01.jpg" alt="depa" style={{ height: '44px', objectFit: 'contain' }} onError={(e) => e.target.style.display = 'none'} />
+                        <img src="/Logo on White BG-01.jpg" alt="DNGWS" style={{ height: '44px', objectFit: 'contain' }} onError={(e) => e.target.style.display = 'none'} />
 
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                             <span style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '1.2px', color: '#0f172a', padding: '5px 10px', borderRadius: '999px', background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)' }}>
@@ -82,9 +82,12 @@ const Sidebar = ({
                             <img src="/mdes.png" alt="MDES" style={{ height: '32px', objectFit: 'contain' }} onError={(e) => e.target.style.display = 'none'} />
                         </div>
                     </div>
-                    <div className="brand" style={{ fontSize: '1.15rem', lineHeight: '1.4', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
-                        <span style={{ letterSpacing: '-0.3px' }}>Iran Conflict Monitor</span>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 'normal', letterSpacing: '0.2px' }}>by Dr Non / depa.</span>
+                    <div className="brand" style={{ fontSize: '1.05rem', lineHeight: '1.4', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '3px' }}>
+                        <span style={{ letterSpacing: '-0.3px', fontWeight: 700 }}>Dr Non's GlobeWatch System</span>
+                        <span style={{ fontSize: '0.72rem', color: viewMode === 'depa' ? '#10b981' : '#ef4444', fontWeight: 600, letterSpacing: '1.2px', textTransform: 'uppercase' }}>
+                            {viewMode === 'depa' ? 'Indo-Pacific Command' : 'Middle East Theater'}
+                        </span>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 'normal', letterSpacing: '0.2px' }}>DNGWS · by Dr Non / depa</span>
                     </div>
                 </div>
             </div>

@@ -97,16 +97,20 @@ function App() {
 
         {/* Row 1: World Clock */}
         <ErrorBoundary inline label="World Clock">
-          <WorldClock />
+          <WorldClock viewMode={viewMode} />
         </ErrorBoundary>
 
         {/* Row 2: Header bar */}
-        <div className="header-bar grid-panel" style={{ padding: '0 20px', display: 'flex', justifyContent: 'space-between' }}>
+        <div className="header-bar grid-panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {viewMode === 'depa' && <img src="/depa-logo.png" alt="depa" style={{ height: '24px' }} />}
-            <span style={{ fontWeight: 700, letterSpacing: '2.5px', fontSize: '0.9rem', color: viewMode === 'depa' ? '#10b981' : '#ef4444' }}>
-              {viewMode === 'depa' ? 'V3 COMMAND CENTER' : 'IRAN CONFLICT MONITOR'}
-            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.25 }}>
+              <span style={{ fontWeight: 700, letterSpacing: '1.8px', fontSize: '0.85rem', color: '#fff' }}>
+                DR NON'S GLOBEWATCH SYSTEM
+              </span>
+              <span style={{ fontWeight: 600, letterSpacing: '2px', fontSize: '0.65rem', color: viewMode === 'depa' ? '#10b981' : '#ef4444' }}>
+                {viewMode === 'depa' ? 'INDO-PACIFIC COMMAND · DNGWS' : 'MIDDLE EAST THEATER · DNGWS'}
+              </span>
+            </div>
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             <button
@@ -136,7 +140,7 @@ function App() {
                 marginRight: '10px'
               }}
             >
-              <RefreshCw size={13} /> Switch to {viewMode === 'middleeast' ? 'DEPA Monitor' : 'Middle East Tracker'}
+              <RefreshCw size={13} /> {viewMode === 'middleeast' ? 'Indo-Pacific' : 'Middle East'}
             </button>
             <button
               onClick={() => setIsSettingsOpen(true)}

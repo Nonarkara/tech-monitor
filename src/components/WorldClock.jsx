@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Clock } from 'lucide-react';
 
-const cities = [
-    { name: 'Tehran', tz: 'Asia/Tehran', primary: true },
+const ME_CITIES = [
+    { name: 'Tehran', tz: 'Asia/Tehran', label: 'Tehran (IR)', primary: true },
     { name: 'Tel Aviv', tz: 'Asia/Jerusalem' },
     { name: 'Dubai', tz: 'Asia/Dubai' },
     { name: 'Riyadh', tz: 'Asia/Riyadh' },
@@ -13,7 +12,20 @@ const cities = [
     { name: 'Bangkok', tz: 'Asia/Bangkok' },
 ];
 
-const WorldClock = () => {
+const APAC_CITIES = [
+    { name: 'Bangkok', tz: 'Asia/Bangkok', label: 'Bangkok (TH)', primary: true },
+    { name: 'Singapore', tz: 'Asia/Singapore' },
+    { name: 'Tokyo', tz: 'Asia/Tokyo' },
+    { name: 'Beijing', tz: 'Asia/Shanghai' },
+    { name: 'Delhi', tz: 'Asia/Kolkata' },
+    { name: 'London', tz: 'Europe/London' },
+    { name: 'Washington', tz: 'America/New_York' },
+    { name: 'Sydney', tz: 'Australia/Sydney' },
+    { name: 'Dubai', tz: 'Asia/Dubai' },
+];
+
+const WorldClock = ({ viewMode = 'middleeast' }) => {
+    const cities = viewMode === 'depa' ? APAC_CITIES : ME_CITIES;
     const [currentTime, setCurrentTime] = useState(new Date());
 
     useEffect(() => {
@@ -64,7 +76,7 @@ const WorldClock = () => {
                     const dt = formatTime(currentTime, city.tz, true, false);
                     return (
                         <div key={city.name} className="primary-clock-content">
-                            <div className="clock-city">{city.name} (IR)</div>
+                            <div className="clock-city">{city.label || city.name}</div>
                             <div className="clock-time-large">
                                 {dt.time.split(':').map((part, i) => (
                                     <React.Fragment key={i}>

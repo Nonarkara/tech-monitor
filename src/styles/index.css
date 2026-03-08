@@ -262,7 +262,7 @@ body {
 }
 
 .app-container::after {
-  content: "\00A9  depa 2026";
+  content: "\00A9 2026 Dr Non\2019s GlobeWatch System (DNGWS) \00B7 depa";
   position: absolute;
   bottom: 1px;
   left: 0;
@@ -340,9 +340,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 18px;
+  padding: 6px 18px;
   border-radius: var(--radius-sm);
-  min-height: 40px;
+  min-height: 48px;
   position: relative;
   overflow: hidden;
 }
@@ -2210,7 +2210,9 @@ body {
 
   .header-bar {
     padding: 6px 8px;
-    min-height: 36px;
+    min-height: 44px;
+    flex-wrap: wrap;
+    gap: 6px;
   }
 
   .header-bar button {
@@ -2218,9 +2220,15 @@ body {
     padding: 5px 8px !important;
   }
 
-  .header-bar span[style] {
-    font-size: 0.78rem !important;
-    letter-spacing: 1.5px !important;
+  .header-bar>div:first-child {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .header-bar>div:first-child span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   /* Smaller map on phones */
