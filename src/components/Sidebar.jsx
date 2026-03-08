@@ -1,8 +1,29 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Layers, Activity, CloudRain, Flame, AlertTriangle, Wind } from 'lucide-react';
+import CopernicusPreviewPanel from './CopernicusPreviewPanel';
 import { EO_TILE_LAYERS } from '../services/eoTiles';
 
-const Sidebar = ({ activeLayers, toggleLayer }) => {
+const Sidebar = ({
+    activeLayers,
+    toggleLayer,
+    viewMode,
+    copernicusMode,
+    setCopernicusMode,
+    copernicusRuntimeSource,
+    showCopernicusOverlay,
+    setShowCopernicusOverlay,
+    showStrategicContext,
+    setShowStrategicContext,
+    copernicusResource
+}) => {
+    const contentRef = useRef(null);
+
+    useEffect(() => {
+        if (contentRef.current) {
+            contentRef.current.scrollTop = 0;
+        }
+    }, [viewMode]);
+
     const layerConfigs = [
         {
             id: 'economy',
@@ -35,6 +56,7 @@ const Sidebar = ({ activeLayers, toggleLayer }) => {
             icon: <Wind size={20} />
         }
     ];
+    const earthObservationLayers = EO_TILE_LAYERS.filter((layer) => !['eo-true-color', 'eo-vegetation'].includes(layer.id));
 
     return (
         <aside className="grid-panel" style={{ flex: 1 }}>
@@ -66,7 +88,7 @@ const Sidebar = ({ activeLayers, toggleLayer }) => {
                     </div>
                 </div>
             </div>
-            <div className="sidebar-content">
+            <div ref={contentRef} className="sidebar-content">
                 <div>
                     <h3 className="section-title">Data Layers</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -91,16 +113,45 @@ const Sidebar = ({ activeLayers, toggleLayer }) => {
                     </div>
                 </div>
 
+                <div>
+                    <h3 className="section-title">Sentinel Hub</h3>
+                    <CopernicusPreviewPanel
+                        viewMode={viewMode}
+                        preset={copernicusMode}
+                        onPresetChange={setCopernicusMode}
+                        runtimeSource={copernicusRuntimeSource}
+                        showOverlay={showCopernicusOverlay}
+                        onToggleOverlay={() => setShowCopernicusOverlay((value) => !value)}
+                        previewResource={copernicusResource}
+                    />
+                </div>
+
+                <div>
+                    <h3 className="section-title">Map Framing</h3>
+                    <div
+                        className={`layer-card ${showStrategicContext ? 'active' : ''}`}
+                        onClick={() => setShowStrategicContext((value) => !value)}
+                    >
+                        <div className="layer-icon-wrapper">
+                            <Layers size={20} />
+                        </div>
+                        <div className="layer-info">
+                            <span className="layer-title">Strategic Context</span>
+                            <span className="layer-desc">Optional reference corridors, zones, and city anchors</span>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Earth Observation Satellite Layers */}
                 <div>
                     <h3 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span>🛰️</span> Earth Observation
                     </h3>
                     <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '10px', lineHeight: 1.5 }}>
-                        Satellite imagery from NASA GIBS, JAXA, ESA. Toggle layers to overlay on the map.
+                        Additional public overlays from NASA GIBS, JAXA, and ESA. Sentinel optical and vegetation modes are controlled above.
                     </p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {EO_TILE_LAYERS.map((layer) => {
+                        {earthObservationLayers.map((layer) => {
                             const isActive = activeLayers.includes(layer.id);
                             return (
                                 <div
@@ -136,4 +187,3 @@ const Sidebar = ({ activeLayers, toggleLayer }) => {
 };
 
 export default Sidebar;
-

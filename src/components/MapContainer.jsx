@@ -8,7 +8,7 @@ import { fetchLiveWeather } from '../services/weather';
 import { fetchMacroEconomy } from '../services/worldBank';
 import { fetchAirQuality } from '../services/airQuality';
 import { useLiveResource } from '../hooks/useLiveResource';
-import { EO_TILE_LAYERS } from '../services/eoTiles';
+import { EO_TILE_LAYERS, getEoLayerById } from '../services/eoTiles';
 import { fetchSdgLayer } from '../services/undpSdg';
 
 const STRATEGIC_ZONES = {
@@ -239,8 +239,44 @@ const CITY_BEACONS = {
     ]
 };
 
-const countFeatures = (collection) => collection?.features?.length || 0;
 const hasFeatureData = (collection) => Array.isArray(collection?.features) && collection.features.length > 0;
+const getPublicSentinelLayerId = (mode) => (mode === 'ndvi' ? 'eo-vegetation' : 'eo-true-color');
+const toImageCoordinates = (bbox) => {
+    const [west, south, east, north] = bbox;
+    return [
+        [west, north],
+        [east, north],
+        [east, south],
+        [west, south]
+    ];
+};
+const toFootprintFeature = (preview) => {
+    const bbox = preview?.bounds?.bbox;
+    if (!Array.isArray(bbox) || bbox.length !== 4) return null;
+
+    const [west, south, east, north] = bbox;
+    return {
+        type: 'FeatureCollection',
+        features: [
+            {
+                type: 'Feature',
+                geometry: {
+                    type: 'Polygon',
+                    coordinates: [[
+                        [west, south],
+                        [east, south],
+                        [east, north],
+                        [west, north],
+                        [west, south]
+                    ]]
+                },
+                properties: {
+                    label: `${preview.theaterLabel} ${preview.presetLabel}`
+                }
+            }
+        ]
+    };
+};
 
 const renderSpatialAura = (data, id, color, baseRadius) => {
     if (!data?.features?.length) return null;
@@ -270,7 +306,17 @@ const MAP_STYLES = {
     voyager: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'
 };
 
-const MapContainer = ({ viewState, onMove, activeLayers, onMarkerClick }) => {
+const MapContainer = ({
+    viewState,
+    onMove,
+    activeLayers,
+    onMarkerClick,
+    copernicusPreview,
+    copernicusMode,
+    copernicusRuntimeSource,
+    showCopernicusOverlay,
+    showStrategicContext
+}) => {
     const [mapStyle, setMapStyle] = useState('dark');
     const disasterResource = useLiveResource(useCallback(() => fetchNaturalDisasters(), []), {
         cacheKey: 'map:disasters',
@@ -315,6 +361,21 @@ const MapContainer = ({ viewState, onMove, activeLayers, onMarkerClick }) => {
     const economyData = economyResource.data;
     const aqiData = aqiResource.data;
     const sdgData = sdgResource.data;
+    const publicSentinelLayerId = getPublicSentinelLayerId(copernicusMode);
+    const publicSentinelLayer = getEoLayerById(publicSentinelLayerId);
+    const publicOverlayVisible = Boolean(
+        showCopernicusOverlay
+        && copernicusRuntimeSource === 'public'
+        && publicSentinelLayer
+    );
+    const copernicusOverlayVisible = Boolean(
+        showCopernicusOverlay
+        && copernicusRuntimeSource === 'copernicus'
+        && copernicusPreview?.available
+        && copernicusPreview?.imageDataUrl
+        && Array.isArray(copernicusPreview?.bounds?.bbox)
+    );
+    const copernicusFootprint = copernicusOverlayVisible ? toFootprintFeature(copernicusPreview) : null;
 
     const renderMarkers = (data, catClass) => {
         if (!data?.features) return null;
@@ -344,29 +405,6 @@ const MapContainer = ({ viewState, onMove, activeLayers, onMarkerClick }) => {
         });
     };
 
-    const criticalSignals = (activeLayers.includes('conflicts') ? countFeatures(crisesData) : 0)
-        + (activeLayers.includes('disasters') ? countFeatures(disastersData) : 0);
-    const climateSignals = (activeLayers.includes('weather') ? countFeatures(weatherData) : 0)
-        + (activeLayers.includes('aqi') ? countFeatures(aqiData) : 0);
-    const macroSignals = activeLayers.includes('economy') ? countFeatures(economyData) : 0;
-    const priorityMode = activeLayers.includes('conflicts') ? 'Conflict-heavy' : 'Systems baseline';
-    const activeResources = [
-        activeLayers.includes('disasters') ? disasterResource : null,
-        activeLayers.includes('conflicts') ? conflictResource : null,
-        activeLayers.includes('weather') ? weatherResource : null,
-        activeLayers.includes('economy') ? economyResource : null,
-        activeLayers.includes('aqi') ? aqiResource : null
-    ].filter(Boolean);
-    const hasAnyLayerData = activeResources.some((resource) => resource.data);
-    const mapStatus = activeResources.some((resource) => resource.isStale)
-        ? 'STALE'
-        : (activeResources.some((resource) => resource.error) && !hasAnyLayerData ? 'OFFLINE' : 'LIVE');
-    const overlaySignals = [
-        { label: 'Airspace hinge', value: activeLayers.includes('conflicts') ? Math.max(3, countFeatures(crisesData)) : 3 },
-        { label: 'Urban engines', value: URBAN_MEGAREGIONS.features.length },
-        { label: 'City mesh', value: CITY_NETWORK.features.length }
-    ];
-
     return (
         <div className="map-wrapper">
             <Map
@@ -381,155 +419,159 @@ const MapContainer = ({ viewState, onMove, activeLayers, onMarkerClick }) => {
                 style={{ width: '100%', height: '100%' }}
                 mapStyle={MAP_STYLES[mapStyle] || MAP_STYLES.dark}
             >
-                <Source id="strategic-zones" type="geojson" data={STRATEGIC_ZONES}>
-                    <Layer
-                        id="strategic-zones-fill"
-                        type="fill"
-                        paint={{
-                            'fill-color': ['get', 'fill'],
-                            'fill-opacity': 0.08
-                        }}
-                    />
-                    <Layer
-                        id="strategic-zones-line"
-                        type="line"
-                        paint={{
-                            'line-color': ['get', 'line'],
-                            'line-width': 1.4,
-                            'line-opacity': 0.42,
-                            'line-dasharray': [2, 2]
-                        }}
-                    />
-                </Source>
+                {showStrategicContext && (
+                    <>
+                        <Source id="strategic-zones" type="geojson" data={STRATEGIC_ZONES}>
+                            <Layer
+                                id="strategic-zones-fill"
+                                type="fill"
+                                paint={{
+                                    'fill-color': ['get', 'fill'],
+                                    'fill-opacity': 0.08
+                                }}
+                            />
+                            <Layer
+                                id="strategic-zones-line"
+                                type="line"
+                                paint={{
+                                    'line-color': ['get', 'line'],
+                                    'line-width': 1.4,
+                                    'line-opacity': 0.42,
+                                    'line-dasharray': [2, 2]
+                                }}
+                            />
+                        </Source>
 
-                <Source id="operational-corridors" type="geojson" data={OPERATIONAL_CORRIDORS}>
-                    <Layer
-                        id="operational-corridors-glow"
-                        type="line"
-                        paint={{
-                            'line-color': ['get', 'color'],
-                            'line-width': ['get', 'glow'],
-                            'line-opacity': 0.08,
-                            'line-blur': 1.3
-                        }}
-                    />
-                    <Layer
-                        id="operational-corridors-core"
-                        type="line"
-                        paint={{
-                            'line-color': ['get', 'color'],
-                            'line-width': ['get', 'width'],
-                            'line-opacity': 0.55
-                        }}
-                    />
-                </Source>
+                        <Source id="operational-corridors" type="geojson" data={OPERATIONAL_CORRIDORS}>
+                            <Layer
+                                id="operational-corridors-glow"
+                                type="line"
+                                paint={{
+                                    'line-color': ['get', 'color'],
+                                    'line-width': ['get', 'glow'],
+                                    'line-opacity': 0.08,
+                                    'line-blur': 1.3
+                                }}
+                            />
+                            <Layer
+                                id="operational-corridors-core"
+                                type="line"
+                                paint={{
+                                    'line-color': ['get', 'color'],
+                                    'line-width': ['get', 'width'],
+                                    'line-opacity': 0.55
+                                }}
+                            />
+                        </Source>
 
-                <Source id="anchor-points" type="geojson" data={ANCHOR_POINTS}>
-                    <Layer
-                        id="anchor-points-glow"
-                        type="circle"
-                        paint={{
-                            'circle-color': ['get', 'color'],
-                            'circle-radius': ['interpolate', ['linear'], ['zoom'], 2, ['get', 'radius'], 8, ['*', ['get', 'radius'], 1.8]],
-                            'circle-opacity': 0.07,
-                            'circle-blur': 0.7
-                        }}
-                    />
-                    <Layer
-                        id="anchor-points-core"
-                        type="circle"
-                        paint={{
-                            'circle-color': ['get', 'color'],
-                            'circle-radius': ['interpolate', ['linear'], ['zoom'], 2, 2, 8, 4],
-                            'circle-opacity': 0.45
-                        }}
-                    />
-                </Source>
+                        <Source id="anchor-points" type="geojson" data={ANCHOR_POINTS}>
+                            <Layer
+                                id="anchor-points-glow"
+                                type="circle"
+                                paint={{
+                                    'circle-color': ['get', 'color'],
+                                    'circle-radius': ['interpolate', ['linear'], ['zoom'], 2, ['get', 'radius'], 8, ['*', ['get', 'radius'], 1.8]],
+                                    'circle-opacity': 0.07,
+                                    'circle-blur': 0.7
+                                }}
+                            />
+                            <Layer
+                                id="anchor-points-core"
+                                type="circle"
+                                paint={{
+                                    'circle-color': ['get', 'color'],
+                                    'circle-radius': ['interpolate', ['linear'], ['zoom'], 2, 2, 8, 4],
+                                    'circle-opacity': 0.45
+                                }}
+                            />
+                        </Source>
 
-                <Source id="urban-megaregions" type="geojson" data={URBAN_MEGAREGIONS}>
-                    <Layer
-                        id="urban-megaregions-extrusion"
-                        type="fill-extrusion"
-                        paint={{
-                            'fill-extrusion-color': ['get', 'color'],
-                            'fill-extrusion-height': ['get', 'height'],
-                            'fill-extrusion-base': ['get', 'base'],
-                            'fill-extrusion-opacity': 0.18
-                        }}
-                    />
-                    <Layer
-                        id="urban-megaregions-outline"
-                        type="line"
-                        paint={{
-                            'line-color': ['get', 'color'],
-                            'line-width': 1.2,
-                            'line-opacity': 0.35
-                        }}
-                    />
-                </Source>
+                        <Source id="urban-megaregions" type="geojson" data={URBAN_MEGAREGIONS}>
+                            <Layer
+                                id="urban-megaregions-extrusion"
+                                type="fill-extrusion"
+                                paint={{
+                                    'fill-extrusion-color': ['get', 'color'],
+                                    'fill-extrusion-height': ['get', 'height'],
+                                    'fill-extrusion-base': ['get', 'base'],
+                                    'fill-extrusion-opacity': 0.18
+                                }}
+                            />
+                            <Layer
+                                id="urban-megaregions-outline"
+                                type="line"
+                                paint={{
+                                    'line-color': ['get', 'color'],
+                                    'line-width': 1.2,
+                                    'line-opacity': 0.35
+                                }}
+                            />
+                        </Source>
 
-                <Source id="city-network" type="geojson" data={CITY_NETWORK}>
-                    <Layer
-                        id="city-network-glow"
-                        type="line"
-                        paint={{
-                            'line-color': ['get', 'color'],
-                            'line-width': 6,
-                            'line-opacity': 0.06
-                        }}
-                    />
-                    <Layer
-                        id="city-network-core"
-                        type="line"
-                        paint={{
-                            'line-color': ['get', 'color'],
-                            'line-width': 1.3,
-                            'line-opacity': 0.32,
-                            'line-dasharray': [1, 1.6]
-                        }}
-                    />
-                </Source>
+                        <Source id="city-network" type="geojson" data={CITY_NETWORK}>
+                            <Layer
+                                id="city-network-glow"
+                                type="line"
+                                paint={{
+                                    'line-color': ['get', 'color'],
+                                    'line-width': 6,
+                                    'line-opacity': 0.06
+                                }}
+                            />
+                            <Layer
+                                id="city-network-core"
+                                type="line"
+                                paint={{
+                                    'line-color': ['get', 'color'],
+                                    'line-width': 1.3,
+                                    'line-opacity': 0.32,
+                                    'line-dasharray': [1, 1.6]
+                                }}
+                            />
+                        </Source>
 
-                <Source id="city-beacons" type="geojson" data={CITY_BEACONS}>
-                    <Layer
-                        id="city-beacons-glow"
-                        type="circle"
-                        paint={{
-                            'circle-color': ['get', 'color'],
-                            'circle-radius': ['interpolate', ['linear'], ['zoom'], 2, 10, 8, 16],
-                            'circle-opacity': 0.08,
-                            'circle-blur': 0.8
-                        }}
-                    />
-                    <Layer
-                        id="city-beacons-core"
-                        type="circle"
-                        paint={{
-                            'circle-color': ['get', 'color'],
-                            'circle-radius': ['get', 'radius'],
-                            'circle-opacity': 0.2,
-                            'circle-stroke-color': ['get', 'color'],
-                            'circle-stroke-width': 1.2,
-                            'circle-stroke-opacity': 0.45
-                        }}
-                    />
-                    <Layer
-                        id="city-beacons-label"
-                        type="symbol"
-                        layout={{
-                            'text-field': ['get', 'name'],
-                            'text-size': 11,
-                            'text-font': ['Open Sans Bold'],
-                            'text-offset': [0, 1.25],
-                            'text-anchor': 'top'
-                        }}
-                        paint={{
-                            'text-color': '#dbeafe',
-                            'text-halo-color': 'rgba(5, 14, 32, 0.9)',
-                            'text-halo-width': 1
-                        }}
-                    />
-                </Source>
+                        <Source id="city-beacons" type="geojson" data={CITY_BEACONS}>
+                            <Layer
+                                id="city-beacons-glow"
+                                type="circle"
+                                paint={{
+                                    'circle-color': ['get', 'color'],
+                                    'circle-radius': ['interpolate', ['linear'], ['zoom'], 2, 10, 8, 16],
+                                    'circle-opacity': 0.08,
+                                    'circle-blur': 0.8
+                                }}
+                            />
+                            <Layer
+                                id="city-beacons-core"
+                                type="circle"
+                                paint={{
+                                    'circle-color': ['get', 'color'],
+                                    'circle-radius': ['get', 'radius'],
+                                    'circle-opacity': 0.2,
+                                    'circle-stroke-color': ['get', 'color'],
+                                    'circle-stroke-width': 1.2,
+                                    'circle-stroke-opacity': 0.45
+                                }}
+                            />
+                            <Layer
+                                id="city-beacons-label"
+                                type="symbol"
+                                layout={{
+                                    'text-field': ['get', 'name'],
+                                    'text-size': 11,
+                                    'text-font': ['Open Sans Bold'],
+                                    'text-offset': [0, 1.25],
+                                    'text-anchor': 'top'
+                                }}
+                                paint={{
+                                    'text-color': '#dbeafe',
+                                    'text-halo-color': 'rgba(5, 14, 32, 0.9)',
+                                    'text-halo-width': 1
+                                }}
+                            />
+                        </Source>
+                    </>
+                )}
 
                 {activeLayers.includes('weather') && (
                     <Source
@@ -546,9 +588,30 @@ const MapContainer = ({ viewState, onMove, activeLayers, onMarkerClick }) => {
                     </Source>
                 )}
 
+                {publicOverlayVisible && (
+                    <Source
+                        id="public-sentinel-overlay"
+                        type="raster"
+                        tiles={publicSentinelLayer.tiles}
+                        tileSize={publicSentinelLayer.tileSize || 256}
+                        attribution={publicSentinelLayer.attribution}
+                        maxzoom={publicSentinelLayer.maxzoom || 8}
+                    >
+                        <Layer
+                            id="public-sentinel-overlay-layer"
+                            type="raster"
+                            paint={{
+                                'raster-opacity': copernicusMode === 'ndvi' ? 0.48 : 0.36,
+                                'raster-fade-duration': 500
+                            }}
+                        />
+                    </Source>
+                )}
+
                 {/* Earth Observation Satellite Tile Layers */}
                 {EO_TILE_LAYERS.map((eoLayer) => {
                     if (!activeLayers.includes(eoLayer.id)) return null;
+                    if (publicOverlayVisible && eoLayer.id === publicSentinelLayerId) return null;
                     return (
                         <Source
                             key={eoLayer.id}
@@ -567,6 +630,49 @@ const MapContainer = ({ viewState, onMove, activeLayers, onMarkerClick }) => {
                         </Source>
                     );
                 })}
+
+                {copernicusOverlayVisible && (
+                    <>
+                        <Source
+                            id="copernicus-preview-image"
+                            type="image"
+                            url={copernicusPreview.imageDataUrl}
+                            coordinates={toImageCoordinates(copernicusPreview.bounds.bbox)}
+                        >
+                            <Layer
+                                id="copernicus-preview-layer"
+                                type="raster"
+                                paint={{
+                                    'raster-opacity': copernicusPreview.preset === 'ndvi' ? 0.72 : 0.78,
+                                    'raster-fade-duration': 500
+                                }}
+                            />
+                        </Source>
+
+                        {copernicusFootprint && (
+                            <Source id="copernicus-preview-footprint" type="geojson" data={copernicusFootprint}>
+                                <Layer
+                                    id="copernicus-preview-footprint-fill"
+                                    type="fill"
+                                    paint={{
+                                        'fill-color': copernicusPreview.preset === 'ndvi' ? '#10b981' : '#38bdf8',
+                                        'fill-opacity': 0.08
+                                    }}
+                                />
+                                <Layer
+                                    id="copernicus-preview-footprint-line"
+                                    type="line"
+                                    paint={{
+                                        'line-color': copernicusPreview.preset === 'ndvi' ? '#10b981' : '#38bdf8',
+                                        'line-width': 1.5,
+                                        'line-dasharray': [2, 2],
+                                        'line-opacity': 0.75
+                                    }}
+                                />
+                            </Source>
+                        )}
+                    </>
+                )}
 
                 {/* UN SDG Choropleth Layer */}
                 {activeLayers.includes('sdg') && sdgData && (
@@ -618,43 +724,6 @@ const MapContainer = ({ viewState, onMove, activeLayers, onMarkerClick }) => {
             <div className="map-vignette" aria-hidden="true" />
             <div className="map-grid-overlay" aria-hidden="true" />
 
-            <div className="map-hud" aria-hidden="true">
-                <span className="map-hud-label">Operational Surface</span>
-                <h3 className="map-hud-title">Toggle satellite layers in the sidebar to overlay real data.</h3>
-                <p className="map-hud-copy">
-                    Nightlights, vegetation, fires, precipitation, and more from NASA, ESA, and JAXA satellites.
-                </p>
-                <div className="map-hud-metrics">
-                    <div className="map-hud-metric">
-                        <strong>{OPERATIONAL_CORRIDORS.features.length}</strong>
-                        <span>hot corridors</span>
-                    </div>
-                    <div className="map-hud-metric">
-                        <strong>{criticalSignals}</strong>
-                        <span>risk nodes</span>
-                    </div>
-                    <div className="map-hud-metric">
-                        <strong>{climateSignals + macroSignals}</strong>
-                        <span>system signals</span>
-                    </div>
-                </div>
-            </div>
-
-            <div className="map-story-strip" aria-hidden="true">
-                <div className="map-story-header">
-                    <span className="map-story-kicker">Map Intelligence</span>
-                    <span className="map-story-mode">{mapStatus} · {priorityMode}</span>
-                </div>
-                <div className="map-story-cards">
-                    {overlaySignals.map((signal) => (
-                        <div key={signal.label} className="map-story-card">
-                            <strong>{signal.value}</strong>
-                            <span>{signal.label}</span>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
             {/* Satellite/Map style toggle */}
             <div className="map-style-toggle">
                 {Object.entries({ dark: '🌑', satellite: '🛰️', voyager: '🗺️' }).map(([key, icon]) => (
@@ -669,35 +738,36 @@ const MapContainer = ({ viewState, onMove, activeLayers, onMarkerClick }) => {
                 ))}
             </div>
 
-            {/* Map Legend */}
-            <div className="map-legend">
-                <div className="map-legend-title">TRADE & SHIPPING CORRIDORS</div>
-                <div className="map-legend-item">
-                    <span className="map-legend-line" style={{ background: '#ef4444' }} />
-                    <span>Energy Route (Gulf → Bangkok)</span>
+            {showStrategicContext && (
+                <div className="map-legend">
+                    <div className="map-legend-title">STRATEGIC CONTEXT</div>
+                    <div className="map-legend-item">
+                        <span className="map-legend-line" style={{ background: '#ef4444' }} />
+                        <span>Energy route reference</span>
+                    </div>
+                    <div className="map-legend-item">
+                        <span className="map-legend-line" style={{ background: '#f59e0b' }} />
+                        <span>Shipping lane reference</span>
+                    </div>
+                    <div className="map-legend-item">
+                        <span className="map-legend-line" style={{ background: '#38bdf8' }} />
+                        <span>Regional city network</span>
+                    </div>
+                    <div className="map-legend-title" style={{ marginTop: '6px' }}>REFERENCE ZONES</div>
+                    <div className="map-legend-item">
+                        <span className="map-legend-zone" style={{ background: 'rgba(239,68,68,0.3)', borderColor: '#fca5a5' }} />
+                        <span>Persian Gulf focus area</span>
+                    </div>
+                    <div className="map-legend-item">
+                        <span className="map-legend-zone" style={{ background: 'rgba(245,158,11,0.3)', borderColor: '#fcd34d' }} />
+                        <span>Horn of Africa / Yemen</span>
+                    </div>
+                    <div className="map-legend-item">
+                        <span className="map-legend-zone" style={{ background: 'rgba(16,185,129,0.3)', borderColor: '#6ee7b7' }} />
+                        <span>ASEAN urban systems</span>
+                    </div>
                 </div>
-                <div className="map-legend-item">
-                    <span className="map-legend-line" style={{ background: '#f59e0b' }} />
-                    <span>Shipping Lane (Red Sea → Singapore)</span>
-                </div>
-                <div className="map-legend-item">
-                    <span className="map-legend-line" style={{ background: '#38bdf8' }} />
-                    <span>East Asia Corridor (Shanghai → SG)</span>
-                </div>
-                <div className="map-legend-title" style={{ marginTop: '6px' }}>STRATEGIC ZONES</div>
-                <div className="map-legend-item">
-                    <span className="map-legend-zone" style={{ background: 'rgba(239,68,68,0.3)', borderColor: '#fca5a5' }} />
-                    <span>Persian Gulf Conflict Zone</span>
-                </div>
-                <div className="map-legend-item">
-                    <span className="map-legend-zone" style={{ background: 'rgba(245,158,11,0.3)', borderColor: '#fcd34d' }} />
-                    <span>Horn of Africa / Yemen</span>
-                </div>
-                <div className="map-legend-item">
-                    <span className="map-legend-zone" style={{ background: 'rgba(16,185,129,0.3)', borderColor: '#6ee7b7' }} />
-                    <span>ASEAN Tech Hub</span>
-                </div>
-            </div>
+            )}
         </div>
     );
 };

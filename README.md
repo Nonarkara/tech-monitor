@@ -42,6 +42,41 @@ Build for production:
 npm run build
 ```
 
+## Copernicus Sentinel Starter
+
+The dashboard now includes a sidebar Sentinel control that automatically chooses between:
+
+- `LIVE`: Copernicus Data Space Sentinel Hub Process API when credentials exist
+- `PUBLIC`: built-in public EO fallback layers for optical and vegetation views when credentials are missing
+
+Set these environment variables before starting the Node API:
+
+```bash
+export COPERNICUS_CLIENT_ID=your-client-id
+export COPERNICUS_CLIENT_SECRET=your-client-secret
+```
+
+The backend exposes:
+
+- `GET /api/copernicus/preview?theater=middleeast&preset=true-color`
+- `GET /api/copernicus/preview?bbox=99.65,13.2,101.55,14.45&preset=ndvi`
+
+Supported query params:
+
+- `theater`: `middleeast` or `depa`
+- `bbox`: `west,south,east,north` in `EPSG:4326`
+- `preset`: `true-color` or `ndvi`
+- `from`, `to`: ISO datetimes
+- `lookbackDays`, `maxCloudCoverage`, `width`, `height`
+
+Notes:
+
+- It uses `sentinel-2-l2a`.
+- Results are cached in the local API for 20 minutes.
+- When credentials are missing, the UI still works by switching to the public fallback overlays.
+- Strategic reference corridors/zones are now behind a dedicated `Strategic Context` toggle.
+- The Copernicus branch is an area preview, not a slippy-map tile service.
+
 ## Current Architecture Notes
 
 - Key live panels now prefer the backend API at `/api/*`, which adds caching and returns live or stale payloads explicitly.

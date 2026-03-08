@@ -11,6 +11,8 @@ import MarketRadarPanel from './components/MarketRadarPanel';
 import SettingsModal from './components/SettingsModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import { INTELLIGENCE_SOURCES, APAC_SOURCES } from './services/liveNews';
+import { fetchCopernicusPreview } from './services/copernicus';
+import { useLiveResource } from './hooks/useLiveResource';
 import { Settings, RefreshCw } from 'lucide-react';
 
 function App() {
@@ -21,6 +23,9 @@ function App() {
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [activeSources, setActiveSources] = useState(INTELLIGENCE_SOURCES.map((source) => source.id));
+  const [copernicusMode, setCopernicusMode] = useState('true-color');
+  const [showCopernicusOverlay, setShowCopernicusOverlay] = useState(true);
+  const [showStrategicContext, setShowStrategicContext] = useState(false);
 
   const [viewState, setViewState] = useState({
     longitude: 53,
@@ -59,6 +64,18 @@ function App() {
   };
 
   const sourceSetKey = activeSources.join(',');
+  const copernicusFetcher = useCallback(
+    () => fetchCopernicusPreview(viewMode, copernicusMode),
+    [viewMode, copernicusMode]
+  );
+  const copernicusResource = useLiveResource(copernicusFetcher, {
+    cacheKey: `copernicus:${viewMode}:${copernicusMode}`,
+    intervalMs: 30 * 60 * 1000,
+    isUsable: (payload) => Boolean(payload && typeof payload === 'object')
+  });
+  const copernicusRuntimeSource = copernicusResource.data?.source === 'copernicus' && copernicusResource.data?.available
+    ? 'copernicus'
+    : 'public';
 
   return (
     <>
@@ -70,6 +87,11 @@ function App() {
             onMove={setViewState}
             activeLayers={activeLayers}
             onMarkerClick={setSelectedEvent}
+            copernicusPreview={copernicusResource.data}
+            copernicusMode={copernicusMode}
+            copernicusRuntimeSource={copernicusRuntimeSource}
+            showCopernicusOverlay={showCopernicusOverlay}
+            showStrategicContext={showStrategicContext}
           />
         </ErrorBoundary>
 
@@ -141,7 +163,19 @@ function App() {
         {/* Row 3-4: Left sidebar — spans down to bottom bar */}
         <div className="left-sidebar">
           <ErrorBoundary inline label="Sidebar">
-            <Sidebar activeLayers={activeLayers} toggleLayer={toggleLayer} />
+            <Sidebar
+              activeLayers={activeLayers}
+              toggleLayer={toggleLayer}
+              viewMode={viewMode}
+              copernicusMode={copernicusMode}
+              setCopernicusMode={setCopernicusMode}
+              copernicusRuntimeSource={copernicusRuntimeSource}
+              showCopernicusOverlay={showCopernicusOverlay}
+              setShowCopernicusOverlay={setShowCopernicusOverlay}
+              showStrategicContext={showStrategicContext}
+              setShowStrategicContext={setShowStrategicContext}
+              copernicusResource={copernicusResource}
+            />
           </ErrorBoundary>
         </div>
 

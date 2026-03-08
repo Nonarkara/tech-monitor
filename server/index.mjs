@@ -1,5 +1,11 @@
 import http from 'node:http';
 import { URL } from 'node:url';
+import {
+    buildCopernicusUnavailablePayload,
+    fetchCopernicusPreview,
+    isCopernicusConfigured,
+    parseCopernicusPreviewOptions
+} from './lib/copernicus.mjs';
 import { fetchBriefingPayload, fetchTickerPayload } from './lib/intelligence.mjs';
 import { fetchMarketPayload } from './lib/marketData.mjs';
 
@@ -162,6 +168,30 @@ const server = http.createServer(async (request, response) => {
                 60000,
                 () => fetchMarketPayload(),
                 (payload) => Array.isArray(payload) && payload.length > 0
+            );
+            json(response, 200, result.payload, result.meta);
+            return;
+        }
+
+        if (url.pathname === '/api/copernicus/preview') {
+            const options = parseCopernicusPreviewOptions(url.searchParams);
+
+            if (!isCopernicusConfigured()) {
+                json(
+                    response,
+                    200,
+                    buildCopernicusUnavailablePayload(options),
+                    { status: 'live', updatedAt: '', cache: 'miss' }
+                );
+                return;
+            }
+
+            const cacheKey = `copernicus:${JSON.stringify(options)}`;
+            const result = await useCached(
+                cacheKey,
+                20 * 60 * 1000,
+                () => fetchCopernicusPreview(options),
+                (payload) => payload?.available === true && typeof payload?.imageDataUrl === 'string' && payload.imageDataUrl.startsWith('data:image/')
             );
             json(response, 200, result.payload, result.meta);
             return;

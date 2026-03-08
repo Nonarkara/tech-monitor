@@ -65,9 +65,9 @@ const RegionalNewsPanel = ({ regionName, title, activeSourceIds }) => {
 
             (async () => {
                 let items = null;
-                try { items = await tryProxy(`https://api.allorigins.win/get?url=${encoded}`, d => d?.contents); } catch {}
-                if (!items) try { items = await tryRawProxy(`https://api.codetabs.com/v1/proxy?quest=${encoded}`); } catch {}
-                if (!items) try { items = await tryRawProxy(`https://corsproxy.io/?url=${encoded}`); } catch {}
+                try { items = await tryProxy(`https://api.allorigins.win/get?url=${encoded}`, d => d?.contents); } catch { items = items || null; }
+                if (!items) try { items = await tryRawProxy(`https://api.codetabs.com/v1/proxy?quest=${encoded}`); } catch { items = items || null; }
+                if (!items) try { items = await tryRawProxy(`https://corsproxy.io/?url=${encoded}`); } catch { items = items || null; }
                 if (mountedRef.current) setNews(items || []);
             })()
                 .catch(() => { if (mountedRef.current) setNews([]); })
