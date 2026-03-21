@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import MapContainer from './components/MapContainer';
 import Sidebar from './components/Sidebar';
 import RegionSelector from './components/RegionSelector';
@@ -13,7 +13,8 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { INTELLIGENCE_SOURCES, APAC_SOURCES } from './services/liveNews';
 import { fetchCopernicusPreview } from './services/copernicus';
 import { useLiveResource } from './hooks/useLiveResource';
-import { Settings, RefreshCw } from 'lucide-react';
+import { Settings, RefreshCw, Eye } from 'lucide-react';
+import { getVisitorCount, BASE_COUNT } from './services/visitorTracker';
 
 function App() {
   const [activeLayers, setActiveLayers] = useState(['disasters', 'weather', 'economy', 'conflicts', 'aqi']);
@@ -26,6 +27,9 @@ function App() {
   const [copernicusMode, setCopernicusMode] = useState('true-color');
   const [showCopernicusOverlay, setShowCopernicusOverlay] = useState(true);
   const [showStrategicContext, setShowStrategicContext] = useState(false);
+
+  const [visitorCount, setVisitorCount] = useState(BASE_COUNT);
+  useEffect(() => { getVisitorCount().then(setVisitorCount); }, []);
 
   const [viewState, setViewState] = useState({
     longitude: 53,
@@ -110,6 +114,16 @@ function App() {
               <span style={{ fontWeight: 600, letterSpacing: '2px', fontSize: '0.65rem', color: viewMode === 'depa' ? '#10b981' : '#ef4444' }}>
                 {viewMode === 'depa' ? 'INDO-PACIFIC COMMAND · DNGWS' : 'MIDDLE EAST THEATER · DNGWS'}
               </span>
+            </div>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '5px',
+              background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '4px', padding: '3px 8px', marginLeft: '12px',
+              fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', letterSpacing: '0.5px',
+              fontFamily: "'JetBrains Mono', monospace"
+            }}>
+              <Eye size={10} style={{ opacity: 0.5 }} />
+              {visitorCount.toLocaleString()}
             </div>
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
