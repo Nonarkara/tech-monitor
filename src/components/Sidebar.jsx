@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Layers, Activity, CloudRain, Flame, AlertTriangle, Wind, Zap, Building2, Plane } from 'lucide-react';
 import CopernicusPreviewPanel from './CopernicusPreviewPanel';
 import SourceStack from './SourceStack';
+import LiveTVPanel from './LiveTVPanel';
 import { EO_TILE_LAYERS } from '../services/eoTiles';
 
 const Sidebar = ({
@@ -194,6 +195,13 @@ const Sidebar = ({
                     <h3 className="section-title">Source Agencies</h3>
                     <SourceStack />
                 </div>
+
+                {/* Live TV — compact 2x2 grid at bottom of sidebar */}
+                {viewMode === 'middleeast' && (
+                    <div>
+                        <LiveTVPanel />
+                    </div>
+                )}
 
                 <div style={{ marginTop: 'auto', paddingTop: '24px', borderTop: '1px solid var(--border-color)', fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: '1.6' }}>
                     <p style={{ marginBottom: '8px', opacity: 0.8 }}>

@@ -361,7 +361,7 @@ body {
 
 .left-sidebar {
   grid-column: 1;
-  grid-row: 3 / 5;
+  grid-row: 3 / 5;  /* spans main content and bottom bar rows */
   gap: 8px;
   display: flex;
   flex-direction: column;

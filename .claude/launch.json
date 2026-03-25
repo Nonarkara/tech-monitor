@@ -3,9 +3,9 @@
   "configurations": [
     {
       "name": "dngws",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["server/index.mjs"],
-      "port": 4000
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--port", "5173"],
+      "port": 5173
     }
   ]
 }

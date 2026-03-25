@@ -16,7 +16,7 @@ import { useLiveResource } from './hooks/useLiveResource';
 import { Settings, RefreshCw, Eye } from 'lucide-react';
 import { getVisitorCount, BASE_COUNT } from './services/visitorTracker';
 import EscalationGauge from './components/EscalationGauge';
-import StrikeStatsPanel from './components/StrikeStatsPanel';
+// LiveTVPanel is rendered inside Sidebar
 import MultiFrontBoard from './components/MultiFrontBoard';
 import IranWarPanel from './components/IranWarPanel';
 import AlertBanner from './components/AlertBanner';
@@ -244,15 +244,6 @@ function App() {
           )}
         </div>
 
-        {/* Strike Stats — above bottom bar */}
-        {viewMode === 'middleeast' && (
-          <div style={{ gridColumn: '2 / -1', display: 'grid', gridTemplateColumns: '1fr', gap: '8px', pointerEvents: 'auto' }}>
-            <ErrorBoundary inline label="Strike Stats">
-              <StrikeStatsPanel />
-            </ErrorBoundary>
-          </div>
-        )}
-
         {/* Row 4: Bottom bar */}
         <div className="bottom-bar">
           <ErrorBoundary inline label="Market Radar">
@@ -274,6 +265,8 @@ function App() {
             </>
           )}
         </div>
+
+{/* LiveTV is rendered inside the left sidebar */}
 
         {/* Row 5: Live news ticker */}
         <ErrorBoundary inline label="Live Feed">
