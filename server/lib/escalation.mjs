@@ -1,6 +1,8 @@
 /**
  * Escalation Risk Index — composite 0-100 score combining
  * FIRMS fire density, news signals, market volatility, and strike frequency.
+ * V4: Includes medium-confidence fires, aggregates ALL briefings,
+ *     expands strike keywords, and applies recency weighting.
  */
 
 const history = []; // up to 24 hourly data points
@@ -8,33 +10,56 @@ let lastHistoryHour = -1;
 
 const getLevel = (score) => {
     if (score >= 70) return { level: 'red', label: 'CRITICAL' };
-    if (score >= 30) return { level: 'amber', label: 'ELEVATED' };
+    if (score >= 50) return { level: 'amber', label: 'ELEVATED' };
+    if (score >= 30) return { level: 'amber', label: 'WATCH' };
     return { level: 'green', label: 'LOW' };
 };
 
+const STRIKE_TAGS = ['strikes', 'conflict', 'nuclear', 'airspace', 'naval', 'proxy'];
+const CRITICAL_TAGS = ['strikes', 'nuclear', 'airspace'];
+
 export const computeEscalation = (serverCache) => {
-    // 1. FIRMS density (0-30)
+    const now = Date.now();
+
+    // 1. FIRMS density (0-30) — include medium AND high confidence
     let firmsScore = 0;
     const firmsEntry = serverCache.get('firms:middleeast');
-    if (firmsEntry?.payload?.features) {
-        const highConf = firmsEntry.payload.features.filter(
+    const isSampleData = firmsEntry?.payload?.meta?.source === 'sample-data';
+    if (firmsEntry?.payload?.features && !isSampleData) {
+        const features = firmsEntry.payload.features;
+        const highConf = features.filter(
             f => f.properties?.confidence === 'high' || f.properties?.confidence === 'h'
         ).length;
-        firmsScore = Math.min(30, highConf * 1.5);
+        const medConf = features.filter(
+            f => f.properties?.confidence === 'nominal' || f.properties?.confidence === 'n' ||
+                 f.properties?.confidence === 'medium'
+        ).length;
+        firmsScore = Math.min(30, (highConf * 2) + (medConf * 0.8));
     }
 
-    // 2. News signals (0-25) — count elevated-tagged items from ticker
+    // 2. News signals (0-25) — aggregate ALL ticker + briefing sources, weight by recency
     let newsScore = 0;
-    const tickerEntries = Array.from(serverCache.entries())
-        .filter(([key]) => key.startsWith('ticker:'));
-    for (const [, entry] of tickerEntries) {
-        if (!Array.isArray(entry?.payload)) continue;
-        const elevated = entry.payload.filter(item =>
-            (item.tags || []).some(t => ['strikes', 'conflict', 'nuclear', 'airspace'].includes(t))
-        ).length;
-        newsScore = Math.min(25, elevated * 2.5);
-        break;
+    const allNewsItems = [];
+
+    for (const [key, entry] of serverCache.entries()) {
+        if (key.startsWith('ticker:') && Array.isArray(entry?.payload)) {
+            allNewsItems.push(...entry.payload);
+        }
     }
+
+    for (const item of allNewsItems) {
+        const tags = item.tags || [];
+        const hasElevatedTag = tags.some(t => STRIKE_TAGS.includes(t));
+        if (!hasElevatedTag) continue;
+
+        // Recency bonus: items from last hour worth 3x, last 6h worth 2x, older worth 1x
+        const age = item.pubDate ? now - new Date(item.pubDate).getTime() : Infinity;
+        const recencyMultiplier = age < 3600000 ? 3 : age < 21600000 ? 2 : 1;
+        const isCritical = tags.some(t => CRITICAL_TAGS.includes(t));
+
+        newsScore += (isCritical ? 3 : 1.5) * recencyMultiplier;
+    }
+    newsScore = Math.min(25, newsScore);
 
     // 3. Market volatility (0-25) — oil + gold change %
     let marketScore = 0;
@@ -42,7 +67,7 @@ export const computeEscalation = (serverCache) => {
     if (Array.isArray(marketsEntry?.payload)) {
         for (const item of marketsEntry.payload) {
             const pct = parseFloat((item.changePerc || '0').replace('%', ''));
-            if (item.symbol?.includes('Oil') || item.symbol?.includes('Crude')) {
+            if (item.symbol?.includes('Oil') || item.symbol?.includes('Crude') || item.symbol?.includes('Brent')) {
                 marketScore += Math.abs(pct) * 3;
             }
             if (item.symbol === 'Gold') {
@@ -52,16 +77,25 @@ export const computeEscalation = (serverCache) => {
         marketScore = Math.min(25, marketScore);
     }
 
-    // 4. Strike frequency (0-20) — items tagged "strikes" from briefings
+    // 4. Strike frequency (0-20) — aggregate ALL briefings, expanded tags
     let strikeScore = 0;
-    const briefingEntries = Array.from(serverCache.entries())
-        .filter(([key]) => key.startsWith('briefing:'));
-    for (const [, entry] of briefingEntries) {
+    for (const [key, entry] of serverCache.entries()) {
+        if (!key.startsWith('briefing:')) continue;
         if (!Array.isArray(entry?.payload?.items)) continue;
-        const strikeItems = entry.payload.items.filter(item =>
-            (item.tags || []).includes('strikes')
-        ).length;
-        strikeScore += strikeItems * 4;
+
+        for (const item of entry.payload.items) {
+            const tags = item.tags || [];
+            const title = (item.title || '').toLowerCase();
+
+            // Tag-based scoring
+            if (tags.includes('strikes')) strikeScore += 4;
+            else if (tags.includes('conflict')) strikeScore += 2;
+
+            // Keyword-based scoring for items that missed tag classification
+            if (/missile|drone|intercept|bomb|airstrike|barrage|rocket/.test(title)) {
+                strikeScore += 3;
+            }
+        }
     }
     strikeScore = Math.min(20, strikeScore);
 
@@ -77,6 +111,14 @@ export const computeEscalation = (serverCache) => {
         lastHistoryHour = currentHour;
     }
 
+    // Track source health
+    const sourceHealth = {
+        firms: firmsEntry?.payload?.features ? (isSampleData ? 'sample' : 'live') : 'offline',
+        news: allNewsItems.length > 0 ? 'live' : 'offline',
+        markets: Array.isArray(marketsEntry?.payload) && marketsEntry.payload.length > 0 ? 'live' : 'offline',
+        briefings: strikeScore > 0 ? 'live' : 'no-data'
+    };
+
     return {
         score: clamped,
         level,
@@ -87,6 +129,7 @@ export const computeEscalation = (serverCache) => {
             market: Math.round(marketScore),
             strikes: Math.round(strikeScore)
         },
+        sourceHealth,
         history: [...history],
         updatedAt: new Date().toISOString()
     };

@@ -22,6 +22,7 @@ import IranWarPanel from './components/IranWarPanel';
 import AlertBanner from './components/AlertBanner';
 import MaritimeWarningsPanel from './components/MaritimeWarningsPanel';
 import SeismicPanel from './components/SeismicPanel';
+import { useOnlineStatus } from './hooks/useOnlineStatus';
 
 function App() {
   const [activeLayers, setActiveLayers] = useState(['disasters', 'weather', 'economy', 'conflicts', 'aqi', 'firms']);
@@ -37,6 +38,7 @@ function App() {
 
   const [visitorCount, setVisitorCount] = useState(BASE_COUNT);
   useEffect(() => { getVisitorCount().then(setVisitorCount); }, []);
+  const { backendUp } = useOnlineStatus();
 
   const [viewState, setViewState] = useState({
     longitude: 53,
@@ -140,6 +142,16 @@ function App() {
               <Eye size={10} style={{ opacity: 0.4 }} />
               {visitorCount.toLocaleString()}
             </div>
+            {!backendUp && (
+              <span style={{
+                fontSize: '0.5rem', fontWeight: 700, letterSpacing: '1px',
+                color: '#ef4444', padding: '2px 8px',
+                background: 'rgba(239,68,68,0.12)', borderRadius: '4px',
+                border: '1px solid rgba(239,68,68,0.25)'
+              }}>
+                OFFLINE
+              </span>
+            )}
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button

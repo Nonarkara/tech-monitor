@@ -258,6 +258,33 @@ body {
   gap: 8px;
 }
 
+/* V4: Responsive breakpoints for tablets and small laptops */
+@media (max-width: 1400px) {
+  .app-container {
+    grid-template-columns: 240px 1fr 260px;
+    padding: 6px;
+    gap: 6px;
+  }
+}
+@media (max-width: 1100px) {
+  .app-container {
+    grid-template-columns: 200px 1fr 220px;
+    padding: 4px;
+    gap: 4px;
+  }
+}
+@media (max-width: 900px) {
+  .app-container {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto auto auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .left-sidebar { display: none; }
+  .right-sidebar { grid-column: 1; }
+  .bottom-bar { grid-column: 1; flex-direction: column; }
+}
+
 .app-container::after {
   content: "\00A9 2026 Dr Non\2019s GlobeWatch System (DNGWS) \00B7 depa";
   position: absolute;

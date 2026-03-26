@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import { Crosshair, Shield, AlertTriangle, Flame, Anchor, Ship, Map } from 'lucide-react';
 import { fetchFrontStatus } from '../services/frontStatus';
 import { useLiveResource } from '../hooks/useLiveResource';
+import DataStatus from './DataStatus';
 
 const ICONS = {
     crosshair: Crosshair,
@@ -123,16 +124,15 @@ const FrontCard = ({ front }) => {
 
 const MultiFrontBoard = () => {
     const fetcher = useCallback(() => fetchFrontStatus(), []);
-    const { data } = useLiveResource(fetcher, {
+    const { data, isLoading, isRefreshing, isStale, error, retryCount, refresh } = useLiveResource(fetcher, {
         cacheKey: 'front-status',
         intervalMs: 5 * 60 * 1000,
         isUsable: (d) => Array.isArray(d?.fronts)
     });
 
-    if (!data?.fronts) return null;
-
-    const criticalCount = data.fronts.filter(f => f.status === 'CRITICAL').length;
-    const activeCount = data.fronts.filter(f => f.status === 'ACTIVE').length;
+    const fronts = data?.fronts || [];
+    const criticalCount = fronts.filter(f => f.status === 'CRITICAL').length;
+    const activeCount = fronts.filter(f => f.status === 'ACTIVE').length;
 
     return (
         <div style={{
@@ -181,15 +181,27 @@ const MultiFrontBoard = () => {
                     )}
                 </div>
             </div>
-            <div style={{
-                display: 'flex',
-                gap: '6px',
-                overflowX: 'auto'
-            }}>
-                {data.fronts.map((front) => (
-                    <FrontCard key={front.id} front={front} />
-                ))}
-            </div>
+            <DataStatus
+                isLoading={isLoading}
+                isRefreshing={isRefreshing}
+                isStale={isStale}
+                error={error}
+                retryCount={retryCount}
+                data={data}
+                isEmpty={data && fronts.length === 0}
+                emptyMessage="No active front data"
+                refresh={refresh}
+            >
+                <div style={{
+                    display: 'flex',
+                    gap: '6px',
+                    overflowX: 'auto'
+                }}>
+                    {fronts.map((front) => (
+                        <FrontCard key={front.id} front={front} />
+                    ))}
+                </div>
+            </DataStatus>
         </div>
     );
 };

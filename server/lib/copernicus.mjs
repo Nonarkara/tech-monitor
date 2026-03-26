@@ -21,53 +21,15 @@ const THEATER_PRESETS = {
     }
 };
 
-const VISUAL_PRESETS = {
-    'true-color': {
-        id: 'true-color',
-        label: 'True Color',
-        evalscript: `//VERSION=3
-function setup() {
-    return {
-        input: ["B04", "B03", "B02", "dataMask"],
-        output: { bands: 4 }
-    };
-}
+import { EVALSCRIPTS } from './evalscripts.mjs';
 
-function evaluatePixel(sample) {
-    return [
-        Math.min(sample.B04 * 2.7, 1),
-        Math.min(sample.B03 * 2.7, 1),
-        Math.min(sample.B02 * 2.7, 1),
-        sample.dataMask
-    ];
-}`
-    },
-    ndvi: {
-        id: 'ndvi',
-        label: 'NDVI',
-        evalscript: `//VERSION=3
-function setup() {
-    return {
-        input: ["B04", "B08", "dataMask"],
-        output: { bands: 4 }
-    };
-}
-
-function evaluatePixel(sample) {
-    if (sample.dataMask === 0) {
-        return [0, 0, 0, 0];
-    }
-
-    const ndvi = index(sample.B08, sample.B04);
-
-    if (ndvi < 0) return [0.22, 0.17, 0.12, 1];
-    if (ndvi < 0.2) return [0.63, 0.48, 0.22, 1];
-    if (ndvi < 0.4) return [0.83, 0.74, 0.31, 1];
-    if (ndvi < 0.6) return [0.32, 0.67, 0.28, 1];
-    return [0.07, 0.35, 0.1, 1];
-}`
-    }
-};
+const VISUAL_PRESETS = Object.fromEntries(
+    Object.entries(EVALSCRIPTS).map(([key, preset]) => [key, {
+        id: preset.id,
+        label: preset.label,
+        evalscript: preset.evalscript
+    }])
+);
 
 let tokenState = {
     accessToken: null,

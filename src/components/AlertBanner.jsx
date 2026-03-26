@@ -6,13 +6,15 @@ import { useLiveResource } from '../hooks/useLiveResource';
 const AlertBanner = () => {
     const [dismissed, setDismissed] = useState(false);
     const fetcher = useCallback(() => fetchEscalation(), []);
-    const { data } = useLiveResource(fetcher, {
+    const { data, error } = useLiveResource(fetcher, {
         cacheKey: 'escalation-alert',
         intervalMs: 5 * 60 * 1000,
         isUsable: (d) => typeof d?.score === 'number'
     });
 
-    if (!data || dismissed) return null;
+    if (dismissed) return null;
+    if (!data && !error) return null;
+    if (!data && error) return null;
 
     const { score, level, label, components } = data;
     if (score < 50) return null;

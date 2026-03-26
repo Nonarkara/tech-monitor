@@ -38,11 +38,16 @@ const defaultIsUsable = (value) => {
     return true;
 };
 
+/** Sleep helper for retry backoff */
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export const useLiveResource = (fetcher, {
     cacheKey,
     enabled = true,
     intervalMs = 300000,
-    isUsable = defaultIsUsable
+    isUsable = defaultIsUsable,
+    maxRetries = 3,
+    maxStaleMs = 10 * 60 * 1000  // 10 minutes — after this, data is considered stale
 } = {}) => {
     const [cached] = useState(() => readCachedState(cacheKey));
     const dataRef = useRef(cached.data);
@@ -57,6 +62,7 @@ export const useLiveResource = (fetcher, {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isStale, setIsStale] = useState(Boolean(cached.data));
     const [error, setError] = useState(null);
+    const [retryCount, setRetryCount] = useState(0);
 
     dataRef.current = data;
 
@@ -69,28 +75,56 @@ export const useLiveResource = (fetcher, {
             setIsLoading(true);
         }
 
-        try {
-            const result = await fetcher();
-            const responseMeta = result && typeof result === 'object' ? result.__meta : null;
+        let lastError = null;
 
-            if (!isUsableRef.current(result)) {
-                throw new Error('No usable live data returned');
+        // Retry loop with exponential backoff
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                if (attempt > 0) {
+                    const backoffMs = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
+                    await sleep(backoffMs);
+                }
+
+                const result = await fetcher();
+                const responseMeta = result && typeof result === 'object' ? result.__meta : null;
+
+                if (!isUsableRef.current(result)) {
+                    throw new Error('No usable live data returned');
+                }
+
+                const stampedAt = new Date().toISOString();
+                setData(result);
+                setLastUpdated(responseMeta?.updatedAt || stampedAt);
+                setIsStale(responseMeta?.status === 'stale');
+                setError(null);
+                setRetryCount(0);
+                writeCachedState(cacheKey, result, responseMeta?.updatedAt || stampedAt);
+
+                // Success — break out of retry loop
+                setIsLoading(false);
+                setIsRefreshing(false);
+                return;
+            } catch (caughtError) {
+                lastError = caughtError;
             }
-
-            const stampedAt = new Date().toISOString();
-            setData(result);
-            setLastUpdated(responseMeta?.updatedAt || stampedAt);
-            setIsStale(responseMeta?.status === 'stale');
-            setError(null);
-            writeCachedState(cacheKey, result, responseMeta?.updatedAt || stampedAt);
-        } catch (caughtError) {
-            setError(caughtError);
-            setIsStale(Boolean(dataRef.current || cached.data));
-        } finally {
-            setIsLoading(false);
-            setIsRefreshing(false);
         }
-    }, [cacheKey, cached.data, enabled, fetcher]);
+
+        // All retries exhausted
+        setError(lastError);
+        setRetryCount((prev) => prev + 1);
+
+        // Check if existing data is too old
+        const hasData = Boolean(dataRef.current || cached.data);
+        if (hasData && lastUpdated) {
+            const age = Date.now() - new Date(lastUpdated).getTime();
+            setIsStale(age > maxStaleMs);
+        } else {
+            setIsStale(hasData);
+        }
+
+        setIsLoading(false);
+        setIsRefreshing(false);
+    }, [cacheKey, cached.data, enabled, fetcher, lastUpdated, maxRetries, maxStaleMs]);
 
     useEffect(() => {
         if (!enabled) return undefined;
@@ -116,6 +150,7 @@ export const useLiveResource = (fetcher, {
         isRefreshing,
         isStale,
         error,
+        retryCount,
         refresh: () => load({ manual: true })
     };
 };

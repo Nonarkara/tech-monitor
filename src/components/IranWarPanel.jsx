@@ -3,6 +3,7 @@ import { Crosshair, AlertCircle, Shield, Flame, Anchor, Map } from 'lucide-react
 import { fetchStrikeStats } from '../services/strikeStats';
 import { fetchFrontStatus } from '../services/frontStatus';
 import { useLiveResource } from '../hooks/useLiveResource';
+import DataStatus from './DataStatus';
 
 const WAR_START = new Date('2026-02-28T00:00:00Z');
 
@@ -42,7 +43,7 @@ const IranWarPanel = ({ activeSourceIds }) => {
     const strikeFetcher = useCallback(() => fetchStrikeStats(), []);
     const frontFetcher = useCallback(() => fetchFrontStatus(), []);
 
-    const { data: strikeData } = useLiveResource(strikeFetcher, {
+    const { data: strikeData, isLoading: strikeLoading, error: strikeError, retryCount: strikeRetry, refresh: strikeRefresh } = useLiveResource(strikeFetcher, {
         cacheKey: 'strike-stats',
         intervalMs: 5 * 60 * 1000,
         isUsable: (d) => d?.weekTotal != null
@@ -53,6 +54,8 @@ const IranWarPanel = ({ activeSourceIds }) => {
         intervalMs: 5 * 60 * 1000,
         isUsable: (d) => Array.isArray(d?.fronts)
     });
+
+    const hasAnyData = strikeData || frontData;
 
     const dayCount = Math.floor((Date.now() - WAR_START.getTime()) / 86400000);
     const weekTotal = strikeData?.weekTotal || {};
@@ -79,6 +82,13 @@ const IranWarPanel = ({ activeSourceIds }) => {
                 </div>
             </div>
 
+            <DataStatus
+                isLoading={strikeLoading && !hasAnyData}
+                error={strikeError}
+                retryCount={strikeRetry}
+                data={hasAnyData}
+                refresh={strikeRefresh}
+            >
             <div className="panel-content" style={{ padding: '10px 12px' }}>
                 {/* Strike summary row */}
                 <div style={{
@@ -163,6 +173,7 @@ const IranWarPanel = ({ activeSourceIds }) => {
                     ))}
                 </div>
             </div>
+            </DataStatus>
         </div>
     );
 };

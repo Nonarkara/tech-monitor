@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { Anchor, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 import { fetchNgaWarnings } from '../services/ngaWarnings';
 import { useLiveResource } from '../hooks/useLiveResource';
+import DataStatus from './DataStatus';
 
 const THREAT_COLORS = {
     HIGH: '#ef4444',
@@ -60,24 +61,11 @@ const WarningItem = ({ warning, expanded, onToggle }) => {
 const MaritimeWarningsPanel = () => {
     const [expandedId, setExpandedId] = useState(null);
     const fetcher = useCallback(() => fetchNgaWarnings(), []);
-    const { data, isLoading } = useLiveResource(fetcher, {
+    const { data, isLoading, isRefreshing, isStale, error, retryCount, refresh } = useLiveResource(fetcher, {
         cacheKey: 'nga-warnings',
         intervalMs: 30 * 60 * 1000,
         isUsable: (d) => Array.isArray(d?.warnings)
     });
-
-    if (!data && isLoading) {
-        return (
-            <div className="bottom-card flex-column" style={{ padding: '12px', opacity: 0.5 }}>
-                <div className="panel-header">
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Anchor size={14} /> MARITIME WARNINGS
-                    </span>
-                </div>
-                <div style={{ padding: '8px', color: 'var(--text-muted)', fontSize: '0.7rem' }}>Loading NGA data...</div>
-            </div>
-        );
-    }
 
     const warnings = data?.warnings || [];
     const highCount = data?.highThreat || 0;
@@ -101,26 +89,32 @@ const MaritimeWarningsPanel = () => {
                     <span className="live-pill">{total} NGA</span>
                 </div>
             </div>
-            <div className="panel-content" style={{
-                maxHeight: '200px', overflow: 'auto',
-                padding: '6px',
-                display: 'flex', flexDirection: 'column'
-            }}>
-                {warnings.length === 0 ? (
-                    <div style={{ padding: '8px', color: 'var(--text-muted)', fontSize: '0.7rem', textAlign: 'center' }}>
-                        No active maritime warnings for Middle East region
-                    </div>
-                ) : (
-                    warnings.slice(0, 15).map((w) => (
+            <DataStatus
+                isLoading={isLoading}
+                isRefreshing={isRefreshing}
+                isStale={isStale}
+                error={error}
+                retryCount={retryCount}
+                data={data}
+                isEmpty={data && warnings.length === 0}
+                emptyMessage="No active maritime warnings for Middle East region"
+                refresh={refresh}
+            >
+                <div className="panel-content" style={{
+                    maxHeight: '200px', overflow: 'auto',
+                    padding: '6px',
+                    display: 'flex', flexDirection: 'column'
+                }}>
+                    {warnings.slice(0, 15).map((w) => (
                         <WarningItem
                             key={w.id}
                             warning={w}
                             expanded={expandedId === w.id}
                             onToggle={() => setExpandedId(expandedId === w.id ? null : w.id)}
                         />
-                    ))
-                )}
-            </div>
+                    ))}
+                </div>
+            </DataStatus>
             <div style={{
                 padding: '4px 8px',
                 borderTop: '1px solid rgba(255,255,255,0.04)',

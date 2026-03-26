@@ -145,15 +145,16 @@ const fetchFeedItems = async (source) => {
             const parsed = parseXmlFeed(response.data, source);
             if (parsed.length > 0) return parsed;
         }
-    } catch {
-        // Fall through to JSON fallback
+    } catch (err) {
+        console.error(`[FEED] ${source.id} primary failed: ${err.message}`);
     }
 
     // Fallback: rss2json
     try {
         const response = await axios.get(`${FEED_JSON_FALLBACK}${encodeURIComponent(source.url)}`, { timeout: 12000 });
         return parseJsonFallback(response.data, source);
-    } catch {
+    } catch (err) {
+        console.error(`[FEED] ${source.id} rss2json fallback failed: ${err.message}`);
         return [];
     }
 };
@@ -181,12 +182,21 @@ const mergeAndRankItems = (items, sourceIndex, focusTags = [], limit = 15) => {
 
 const gatherFeeds = async (sources, focusTags = [], limit = 15) => {
     const sourceIndex = new Map(sources.map((source) => [source.id, source]));
-    const batches = await Promise.all(
+    const results = await Promise.allSettled(
         sources.map(async (source) => {
             const items = await fetchFeedItems(source);
             return items.map((item) => ({ ...item, sourceId: source.id }));
         })
     );
+
+    const batches = results
+        .filter((r) => r.status === 'fulfilled')
+        .map((r) => r.value);
+
+    const rejected = results.filter((r) => r.status === 'rejected');
+    if (rejected.length > 0) {
+        console.warn(`[FEED] ${rejected.length}/${results.length} sources failed entirely`);
+    }
 
     return mergeAndRankItems(batches.flat(), sourceIndex, focusTags, limit);
 };

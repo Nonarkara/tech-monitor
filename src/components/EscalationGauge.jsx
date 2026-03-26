@@ -18,7 +18,7 @@ const EscalationGauge = () => {
 
     if (!data) return null;
 
-    const { score, level, label, history } = data;
+    const { score, level, label, history, sourceHealth } = data;
     const color = COLORS[level] || COLORS.amber;
 
     // SVG arc gauge
@@ -111,6 +111,20 @@ const EscalationGauge = () => {
                     {label}
                 </span>
                 {sparkline}
+                {/* Source health dots */}
+                {sourceHealth && (
+                    <div style={{ display: 'flex', gap: '3px', marginTop: '2px' }}>
+                        {Object.entries(sourceHealth).map(([key, status]) => {
+                            const dotColor = status === 'live' ? '#22c55e' : status === 'sample' ? '#f59e0b' : '#ef4444';
+                            return (
+                                <div key={key} title={`${key}: ${status}`} style={{
+                                    width: '4px', height: '4px', borderRadius: '50%',
+                                    background: dotColor, opacity: 0.7
+                                }} />
+                            );
+                        })}
+                    </div>
+                )}
             </div>
         </div>
     );

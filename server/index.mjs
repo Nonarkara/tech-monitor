@@ -20,6 +20,10 @@ import { fetchOpenSkyPayload } from './lib/opensky.mjs';
 import { computeFrontStatus } from './lib/frontStatus.mjs';
 import { fetchNgaWarnings } from './lib/ngaWarnings.mjs';
 import { fetchUsgsQuakes } from './lib/usgsQuakes.mjs';
+import { searchStacScenes } from './lib/stacCatalog.mjs';
+import { searchPlanetaryComputer } from './lib/planetaryComputer.mjs';
+import { listPresets as listEvalscriptPresets } from './lib/evalscripts.mjs';
+import { probeCog } from './lib/cogReader.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST_DIR = path.resolve(__dirname, '..', 'dist');
@@ -156,7 +160,7 @@ const server = http.createServer(async (request, response) => {
         if (url.pathname === '/api/ticker') {
             const result = await useCached(
                 `ticker:${sourceIds?.join(',') || 'default'}`,
-                120000,
+                60000,  // V4: reduced from 120s to 60s for breaking news
                 () => fetchTickerPayload(sourceIds),
                 (payload) => Array.isArray(payload) && payload.length > 0
             );
@@ -168,7 +172,7 @@ const server = http.createServer(async (request, response) => {
             const briefingId = decodeURIComponent(url.pathname.replace('/api/briefings/', ''));
             const result = await useCached(
                 `briefing:${briefingId}:${sourceIds?.join(',') || 'default'}`,
-                120000,
+                60000,  // V4: reduced from 120s to 60s for faster escalation detection
                 () => fetchBriefingPayload(briefingId, sourceIds),
                 (payload) => Array.isArray(payload?.items) && payload.items.length > 0
             );
@@ -274,11 +278,58 @@ const server = http.createServer(async (request, response) => {
         if (url.pathname === '/api/markets') {
             const result = await useCached(
                 'markets',
-                60000,
+                30000,  // V4: reduced from 60s to 30s for oil price crisis tracking
                 () => fetchMarketPayload(),
                 (payload) => Array.isArray(payload) && payload.length > 0
             );
             json(response, 200, result.payload, result.meta);
+            return;
+        }
+
+        if (url.pathname === '/api/stac/search') {
+            const bbox = url.searchParams.get('bbox');
+            if (!bbox) {
+                json(response, 400, { error: 'bbox parameter required (west,south,east,north)' });
+                return;
+            }
+            const bboxArr = bbox.split(',').map(Number);
+            if (bboxArr.length !== 4 || bboxArr.some(n => !Number.isFinite(n))) {
+                json(response, 400, { error: 'bbox must be 4 comma-separated numbers' });
+                return;
+            }
+            const datetime = url.searchParams.get('datetime') || undefined;
+            const maxCloudCover = Number(url.searchParams.get('maxCloudCover') || 20);
+            const source = url.searchParams.get('source') || 'copernicus';
+
+            const cacheKeySuffix = `${bbox}_${datetime || 'latest'}_${maxCloudCover}_${source}`;
+            const result = await useCached(
+                `stac:${cacheKeySuffix}`,
+                30 * 60 * 1000,
+                async () => {
+                    if (source === 'planetary-computer') {
+                        return searchPlanetaryComputer({ bbox: bboxArr, datetime, maxCloudCover });
+                    }
+                    return searchStacScenes({ bbox: bboxArr, datetime, maxCloudCover });
+                },
+                (p) => p?.type === 'FeatureCollection'
+            );
+            json(response, 200, result.payload, result.meta);
+            return;
+        }
+
+        if (url.pathname === '/api/stac/presets') {
+            json(response, 200, listEvalscriptPresets());
+            return;
+        }
+
+        if (url.pathname === '/api/cog/probe') {
+            const cogUrl = url.searchParams.get('url');
+            if (!cogUrl) {
+                json(response, 400, { error: 'url parameter required' });
+                return;
+            }
+            const probeResult = await probeCog(cogUrl);
+            json(response, 200, probeResult);
             return;
         }
 

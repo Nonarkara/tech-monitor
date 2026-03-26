@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import { Radio } from 'lucide-react';
 import { fetchUsgsQuakes } from '../services/usgsQuakes';
 import { useLiveResource } from '../hooks/useLiveResource';
+import DataStatus from './DataStatus';
 
 const getMagColor = (mag) => {
     if (mag >= 6) return '#dc2626';
@@ -76,24 +77,11 @@ const QuakeItem = ({ quake }) => {
 
 const SeismicPanel = () => {
     const fetcher = useCallback(() => fetchUsgsQuakes(), []);
-    const { data, isLoading } = useLiveResource(fetcher, {
+    const { data, isLoading, isRefreshing, isStale, error, retryCount, refresh } = useLiveResource(fetcher, {
         cacheKey: 'usgs-quakes',
         intervalMs: 10 * 60 * 1000,
         isUsable: (d) => d?.summary != null
     });
-
-    if (!data && isLoading) {
-        return (
-            <div className="bottom-card flex-column" style={{ padding: '12px', opacity: 0.5 }}>
-                <div className="panel-header">
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Radio size={14} /> SEISMIC ACTIVITY
-                    </span>
-                </div>
-                <div style={{ padding: '8px', color: 'var(--text-muted)', fontSize: '0.7rem' }}>Loading USGS data...</div>
-            </div>
-        );
-    }
 
     const summary = data?.summary || {};
     const features = (data?.features || []).slice(0, 8);
@@ -121,44 +109,48 @@ const SeismicPanel = () => {
                     <span className="live-pill">{summary.total || 0} USGS</span>
                 </div>
             </div>
-            <div className="panel-content" style={{
-                display: 'flex', flexDirection: 'column', gap: '2px',
-                maxHeight: '180px', overflow: 'auto', padding: '6px'
-            }}>
-                {/* Summary stats */}
-                <div style={{
-                    display: 'flex', gap: '12px', paddingBottom: '6px',
-                    borderBottom: '1px solid rgba(255,255,255,0.04)',
-                    marginBottom: '4px'
+            <DataStatus
+                isLoading={isLoading}
+                isRefreshing={isRefreshing}
+                isStale={isStale}
+                error={error}
+                retryCount={retryCount}
+                data={data}
+                isEmpty={data && quakes.length === 0}
+                emptyMessage="No recent seismic activity in region"
+                refresh={refresh}
+            >
+                <div className="panel-content" style={{
+                    display: 'flex', flexDirection: 'column', gap: '2px',
+                    maxHeight: '180px', overflow: 'auto', padding: '6px'
                 }}>
-                    <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '0.9rem', fontWeight: 200, fontFamily: 'var(--font-mono)', color: summary.last24h > 5 ? '#f59e0b' : 'var(--text-muted)' }}>
-                            {summary.last24h || 0}
+                    <div style={{
+                        display: 'flex', gap: '12px', paddingBottom: '6px',
+                        borderBottom: '1px solid rgba(255,255,255,0.04)',
+                        marginBottom: '4px'
+                    }}>
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '0.9rem', fontWeight: 200, fontFamily: 'var(--font-mono)', color: summary.last24h > 5 ? '#f59e0b' : 'var(--text-muted)' }}>
+                                {summary.last24h || 0}
+                            </div>
+                            <div style={{ fontSize: '0.38rem', fontWeight: 600, letterSpacing: '0.8px', color: 'var(--text-muted)' }}>24H</div>
                         </div>
-                        <div style={{ fontSize: '0.38rem', fontWeight: 600, letterSpacing: '0.8px', color: 'var(--text-muted)' }}>24H</div>
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '0.9rem', fontWeight: 200, fontFamily: 'var(--font-mono)', color: getMagColor(summary.maxMagnitude || 0) }}>
-                            {summary.maxMagnitude ? summary.maxMagnitude.toFixed(1) : '--'}
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '0.9rem', fontWeight: 200, fontFamily: 'var(--font-mono)', color: getMagColor(summary.maxMagnitude || 0) }}>
+                                {summary.maxMagnitude ? summary.maxMagnitude.toFixed(1) : '--'}
+                            </div>
+                            <div style={{ fontSize: '0.38rem', fontWeight: 600, letterSpacing: '0.8px', color: 'var(--text-muted)' }}>MAX MAG</div>
                         </div>
-                        <div style={{ fontSize: '0.38rem', fontWeight: 600, letterSpacing: '0.8px', color: 'var(--text-muted)' }}>MAX MAG</div>
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '0.9rem', fontWeight: 200, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-                            {summary.total || 0}
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '0.9rem', fontWeight: 200, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                                {summary.total || 0}
+                            </div>
+                            <div style={{ fontSize: '0.38rem', fontWeight: 600, letterSpacing: '0.8px', color: 'var(--text-muted)' }}>TOTAL</div>
                         </div>
-                        <div style={{ fontSize: '0.38rem', fontWeight: 600, letterSpacing: '0.8px', color: 'var(--text-muted)' }}>TOTAL</div>
                     </div>
+                    {quakes.map((q) => <QuakeItem key={q.id} quake={q} />)}
                 </div>
-
-                {quakes.length === 0 ? (
-                    <div style={{ padding: '8px', color: 'var(--text-muted)', fontSize: '0.7rem', textAlign: 'center' }}>
-                        No recent seismic activity in region
-                    </div>
-                ) : (
-                    quakes.map((q) => <QuakeItem key={q.id} quake={q} />)
-                )}
-            </div>
+            </DataStatus>
             <div style={{
                 padding: '4px 8px',
                 borderTop: '1px solid rgba(255,255,255,0.04)',

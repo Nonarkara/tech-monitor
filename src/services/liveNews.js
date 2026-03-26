@@ -1,12 +1,4 @@
-import axios from 'axios';
 import { fetchBackendJson } from './backendClient.js';
-
-const CORS_PROXIES = [
-    { url: 'https://api.allorigins.win/get?url=', extract: (data) => data?.contents },
-    { url: 'https://api.codetabs.com/v1/proxy?quest=', extract: (data) => (typeof data === 'string' ? data : null) },
-    { url: 'https://corsproxy.io/?url=', extract: (data) => (typeof data === 'string' ? data : null) },
-];
-const FEED_JSON_FALLBACK = 'https://api.rss2json.com/v1/api.json?rss_url=';
 export const DEFAULT_SOURCE_IDS = ['bbc_world', 'bbc_middleeast', 'aljazeera', 'guardian_world', 'guardian_me', 'al_monitor', 'toi', 'jpost', 'reuters_world', 'ap_mideast', 'google_me', 'cna', 'bangkok_post', 'arab_news', 'rudaw', 'tasnim'];
 
 export const KEYWORD_GROUPS = [
@@ -169,274 +161,33 @@ export const BRIEFING_DEFINITIONS = {
 
 const sourceById = new Map(INTELLIGENCE_SOURCES.map((source) => [source.id, source]));
 
-const normalizeTitle = (value = '') => value.toLowerCase().replace(/https?:\/\/\S+/g, '').replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
-
-const resolveDate = (value) => {
-    if (!value) return new Date();
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
-};
-
-const withCacheBuster = (url) => `${url}${url.includes('?') ? '&' : '?'}cb=${Date.now()}`;
-
-const makeSourceWindow = (activeSourceIds, filterFn, limit = 4) => {
-    const idSet = new Set(Array.isArray(activeSourceIds) ? activeSourceIds : DEFAULT_SOURCE_IDS);
-    return INTELLIGENCE_SOURCES
-        .filter((source) => idSet.has(source.id) && filterFn(source))
-        .sort((a, b) => b.trustScore - a.trustScore)
-        .slice(0, limit);
-};
-
-const buildQuerySources = (briefing) => (
-    briefing.queries.map((query, index) => ({
-        id: `${briefing.id}-query-${index}`,
-        name: `Search: ${briefing.title}`,
-        url: buildGoogleNewsSearchUrl(query, briefing.locale),
-        group: 'query',
-        trustScore: 9
-    }))
-);
-
-const extractAtomLink = (entry) => {
-    const preferred = entry.querySelector('link[rel="alternate"]');
-    if (preferred?.getAttribute('href')) return preferred.getAttribute('href');
-
-    const firstLink = entry.querySelector('link');
-    if (firstLink?.getAttribute('href')) return firstLink.getAttribute('href');
-
-    return firstLink?.textContent || '';
-};
-
-const readKeywordSignals = (title, focusTags = []) => {
-    const lowerTitle = (title || '').toLowerCase();
-    const matched = [];
-    let score = 0;
-
-    KEYWORD_GROUPS.forEach((group) => {
-        const matchedTerms = group.terms.filter((term) => lowerTitle.includes(term));
-        if (matchedTerms.length === 0) return;
-
-        const focusBoost = focusTags.includes(group.tag) ? 8 : 0;
-        matched.push(group.tag);
-        score += group.weight + focusBoost + matchedTerms.length;
-    });
-
-    return {
-        tags: matched.slice(0, 3),
-        score
-    };
-};
-
-const scoreFeedItem = (item, source, focusTags) => {
-    const ageHours = Math.max(0, (Date.now() - item.pubDate.getTime()) / 36e5);
-    const freshness = Math.max(0, 24 - ageHours) * 1.2;
-    const keywordSignals = readKeywordSignals(item.title, focusTags);
-
-    return {
-        ...item,
-        tags: item.tags?.length ? item.tags : keywordSignals.tags,
-        score: source.trustScore + freshness + keywordSignals.score
-    };
-};
-
-const parseXmlFeed = (xml, source) => {
-    const parser = new DOMParser();
-    const document = parser.parseFromString(xml, 'text/xml');
-
-    if (document.querySelector('parsererror')) {
-        return [];
-    }
-
-    const feedTitle = document.querySelector('channel > title')?.textContent
-        || document.querySelector('feed > title')?.textContent
-        || source.name;
-
-    const rssItems = Array.from(document.querySelectorAll('item')).map((item) => {
-        const title = item.querySelector('title')?.textContent?.trim();
-        const link = item.querySelector('link')?.textContent?.trim();
-        const pubDate = resolveDate(item.querySelector('pubDate')?.textContent);
-        const sourceLabel = item.querySelector('source')?.textContent?.trim()
-            || item.querySelector('author')?.textContent?.trim()
-            || feedTitle;
-
-        if (!title || !link) return null;
-        if (normalizeTitle(title) === normalizeTitle(feedTitle) || title === feedTitle) return null;
-
-        return {
-            title,
-            link,
-            pubDate,
-            source: sourceLabel
-        };
-    });
-
-    if (rssItems.some(Boolean)) {
-        return rssItems.filter(Boolean);
-    }
-
-    return Array.from(document.querySelectorAll('entry')).map((entry) => {
-        const title = entry.querySelector('title')?.textContent?.trim();
-        const link = extractAtomLink(entry)?.trim();
-        const pubDate = resolveDate(entry.querySelector('updated')?.textContent || entry.querySelector('published')?.textContent);
-
-        if (!title || !link) return null;
-
-        return {
-            title,
-            link,
-            pubDate,
-            source: feedTitle
-        };
-    }).filter(Boolean);
-};
-
-const parseJsonFallback = (payload, source) => {
-    if (!payload?.items) return [];
-
-    const feedTitle = payload.feed?.title || source.name;
-
-    return payload.items.map((item) => ({
-        title: item.title,
-        link: item.link,
-        pubDate: resolveDate(item.pubDate),
-        source: item.author || feedTitle
-    })).filter((item) => {
-        if (!item.title || !item.link) return false;
-        const normalizedItemTitle = normalizeTitle(item.title);
-        const normalizedFeedTitle = normalizeTitle(feedTitle);
-        if (normalizedItemTitle === normalizedFeedTitle || item.title === feedTitle) return false;
-        return true;
-    });
-};
-
-const fetchFeedItems = async (source) => {
-    const feedUrl = withCacheBuster(source.url);
-
-    for (const proxy of CORS_PROXIES) {
-        try {
-            const proxied = `${proxy.url}${encodeURIComponent(feedUrl)}`;
-            const response = await axios.get(proxied, { timeout: 12000 });
-            const xml = proxy.extract(response.data);
-
-            if (xml) {
-                const parsed = parseXmlFeed(xml, source);
-                if (parsed.length > 0) return parsed;
-            }
-        } catch {
-            // Try next proxy
-        }
-    }
-
-    try {
-        const fallbackUrl = `${FEED_JSON_FALLBACK}${encodeURIComponent(source.url)}`;
-        const response = await axios.get(fallbackUrl, { timeout: 12000 });
-        return parseJsonFallback(response.data, source);
-    } catch {
-        return [];
-    }
-};
-
-const mergeAndRankItems = (items, sourceIndex, focusTags = [], limit = 15) => {
-    const seenTitles = new Set();
-
-    return items
-        .map((item) => {
-            const source = sourceIndex.get(item.sourceId) || { trustScore: 8, name: item.source };
-            return scoreFeedItem(item, source, focusTags);
-        })
-        .sort((a, b) => {
-            if (b.score === a.score) return b.pubDate - a.pubDate;
-            return b.score - a.score;
-        })
-        .filter((item) => {
-            const normalized = normalizeTitle(item.title);
-            if (!normalized || seenTitles.has(normalized)) return false;
-            seenTitles.add(normalized);
-            return true;
-        })
-        .slice(0, limit);
-};
-
-const gatherFeeds = async (sources, focusTags = [], limit = 15) => {
-    const sourceIndex = new Map(sources.map((source) => [source.id, source]));
-    const batches = await Promise.all(
-        sources.map(async (source) => {
-            const items = await fetchFeedItems(source);
-            return items.map((item) => ({ ...item, sourceId: source.id }));
-        })
-    );
-
-    return mergeAndRankItems(batches.flat(), sourceIndex, focusTags, limit);
-};
-
-const deriveBriefingStats = (items) => {
-    const tagCounts = new Map();
-
-    items.forEach((item) => {
-        item.tags?.forEach((tag) => {
-            tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
-        });
-    });
-
-    const dominantTags = Array.from(tagCounts.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3)
-        .map(([tag]) => tag);
-
-    return {
-        total: items.length,
-        highPriority: items.filter((item) => item.score >= 36).length,
-        dominantTags,
-        lastUpdated: new Date()
-    };
-};
-
 export const fetchBriefing = async (briefingId, activeSourceIds = null) => {
-    try {
-        const backendData = await fetchBackendJson(`/api/briefings/${briefingId}`, {
-            sourceIds: Array.isArray(activeSourceIds) ? activeSourceIds.join(',') : undefined
-        });
-        if (backendData && backendData.items && backendData.items.length > 0) return backendData;
-    } catch {
-        // Fall back to direct fetching if backend proxy is offline
-    }
+    const backendData = await fetchBackendJson(`/api/briefings/${briefingId}`, {
+        sourceIds: Array.isArray(activeSourceIds) ? activeSourceIds.join(',') : undefined
+    });
 
+    if (backendData?.items?.length > 0) return backendData;
+
+    // Backend returned empty — use briefing fallback items if available
     const briefing = BRIEFING_DEFINITIONS[briefingId];
-
-    if (!briefing) {
-        throw new Error(`Unknown briefing: ${briefingId}`);
-    }
-
-    const contextualSources = makeSourceWindow(activeSourceIds, briefing.sourceFilter, 4);
-    const querySources = buildQuerySources(briefing);
-    const rankedItems = await gatherFeeds([...contextualSources, ...querySources], briefing.focusTags, 6);
-    const items = rankedItems;
-    const stats = deriveBriefingStats(items);
+    if (!briefing) throw new Error(`Unknown briefing: ${briefingId}`);
 
     return {
         ...briefing,
-        items,
-        stats,
-        summary: stats.total > 0
-            ? `${stats.highPriority || stats.total} elevated signals across ${stats.dominantTags.length || 1} dominant themes.`
-            : 'No live items were returned on the latest pull. Use the official source links while the feed refreshes.'
+        items: briefing.fallbackItems || [],
+        stats: { total: 0, highPriority: 0, dominantTags: [], lastUpdated: new Date().toISOString() },
+        summary: 'No live items were returned on the latest pull. Use the official source links while the feed refreshes.'
     };
 };
 
 export const fetchLiveNews = async (activeSourceIds = null) => {
-    try {
-        const backendData = await fetchBackendJson('/api/ticker', {
-            sourceIds: Array.isArray(activeSourceIds) ? activeSourceIds.join(',') : undefined
-        });
-        if (backendData && backendData.length > 0) return backendData;
-    } catch {
-        // Fall back to direct fetching if backend proxy is offline
-    }
+    const backendData = await fetchBackendJson('/api/ticker', {
+        sourceIds: Array.isArray(activeSourceIds) ? activeSourceIds.join(',') : undefined
+    });
 
-    const sources = makeSourceWindow(activeSourceIds, () => true, 8);
-    const items = await gatherFeeds(sources, ['strikes', 'conflict', 'nuclear', 'airspace', 'naval', 'sanctions', 'energy', 'proxy'], 20);
+    if (Array.isArray(backendData) && backendData.length > 0) return backendData;
 
-    return items;
+    return [];
 };
 
 export const getSourceById = (sourceId) => sourceById.get(sourceId);
