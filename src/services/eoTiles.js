@@ -199,8 +199,38 @@ export const EO_TILE_LAYERS = [
     }
 ];
 
+// Dynamic COG layers registered at runtime from STAC search results
+const dynamicLayers = new Map();
+
+/** Register a COG layer from a STAC scene asset */
+export const registerCogLayer = ({ id, name, tileUrl, bbox, attribution, opacity = 0.7, maxzoom = 14 }) => {
+    const layer = {
+        id: `eo-cog-${id}`,
+        name,
+        description: `COG layer from STAC scene ${id}`,
+        group: 'satellite',
+        type: 'cog',
+        icon: '🛰️',
+        tiles: [tileUrl],
+        tileSize: 256,
+        bounds: bbox,
+        attribution: attribution || 'STAC COG',
+        opacity,
+        maxzoom
+    };
+    dynamicLayers.set(layer.id, layer);
+    return layer;
+};
+
+/** Remove a dynamic COG layer */
+export const unregisterCogLayer = (id) => dynamicLayers.delete(`eo-cog-${id}`);
+
+/** Get all layers including dynamic COG layers */
+export const getAllEoLayers = () => [...EO_TILE_LAYERS, ...dynamicLayers.values()];
+
 /** Get layer config by ID */
-export const getEoLayerById = (id) => EO_TILE_LAYERS.find((l) => l.id === id);
+export const getEoLayerById = (id) =>
+    EO_TILE_LAYERS.find((l) => l.id === id) || dynamicLayers.get(id);
 
 /** Get all layer IDs */
-export const getEoLayerIds = () => EO_TILE_LAYERS.map((l) => l.id);
+export const getEoLayerIds = () => [...EO_TILE_LAYERS.map((l) => l.id), ...dynamicLayers.keys()];

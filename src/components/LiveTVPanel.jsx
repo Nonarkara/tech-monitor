@@ -49,6 +49,8 @@ const LiveTVPanel = () => {
       flexDirection: 'column',
       borderRadius: 'var(--radius)',
       overflow: 'hidden',
+      flexShrink: 0,
+      maxHeight: '180px',
     }}>
       <div style={{
         display: 'flex',

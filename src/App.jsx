@@ -231,6 +231,11 @@ function App() {
               copernicusResource={copernicusResource}
             />
           </ErrorBoundary>
+          {viewMode === 'middleeast' && (
+            <ErrorBoundary inline label="Live TV">
+              <LiveTVPanel />
+            </ErrorBoundary>
+          )}
         </div>
 
         {/* Row 3: Right sidebar */}
@@ -298,21 +303,7 @@ function App() {
           viewMode={viewMode}
         />
 
-        {/* Floating: Live TV — bottom-left corner */}
-        {viewMode === 'middleeast' && (
-          <div style={{
-            position: 'fixed',
-            bottom: '46px',
-            left: '320px',
-            width: '320px',
-            zIndex: 50,
-            pointerEvents: 'auto'
-          }}>
-            <ErrorBoundary inline label="Live TV">
-              <LiveTVPanel />
-            </ErrorBoundary>
-          </div>
-        )}
+        {/* Live TV moved into left-sidebar above */}
 
         {/* Modal: Settings */}
         <SettingsModal

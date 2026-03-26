@@ -3,7 +3,11 @@ import { Eye, EyeOff, RefreshCw, Satellite } from 'lucide-react';
 
 const MODES = [
     { id: 'true-color', label: 'Optical' },
-    { id: 'ndvi', label: 'Vegetation' }
+    { id: 'ndvi', label: 'Vegetation' },
+    { id: 'moisture', label: 'Moisture' },
+    { id: 'urban-heat', label: 'Urban Heat' },
+    { id: 'burn-severity', label: 'Burn' },
+    { id: 'water-bodies', label: 'Water' }
 ];
 
 const formatDate = (value) => {
@@ -177,6 +181,17 @@ const CopernicusPreviewPanel = ({
                     <span className="eo-chip">{theaterLabel}</span>
                     <span className="eo-chip">{preview?.presetLabel || modeLabel}</span>
                     <span className="eo-chip">{sourceLabel}</span>
+                    {preview?.sceneId && (
+                        <span className="eo-chip" title={`Scene: ${preview.sceneId}`}>
+                            {preview.sceneId.slice(0, 12)}...
+                        </span>
+                    )}
+                    {preview?.cloudCover != null && (
+                        <span className="eo-chip">{preview.cloudCover}% cloud</span>
+                    )}
+                    {preview?.acquisitionAge && (
+                        <span className="eo-chip">Captured {preview.acquisitionAge}</span>
+                    )}
                 </div>
 
                 <div className="eo-insight-card">
