@@ -10,6 +10,7 @@ import { fetchAirQuality } from '../services/airQuality';
 import { fetchFirmsData } from '../services/firms';
 import { fetchInfrastructure } from '../services/infrastructure';
 import { fetchOpenSky } from '../services/opensky';
+import { fetchAcledEvents } from '../services/acled';
 import { useLiveResource } from '../hooks/useLiveResource';
 import { EO_TILE_LAYERS, getEoLayerById } from '../services/eoTiles';
 import { fetchSdgLayer } from '../services/undpSdg';
@@ -318,9 +319,10 @@ const MapContainer = ({
     copernicusMode,
     copernicusRuntimeSource,
     showCopernicusOverlay,
-    showStrategicContext
+    showStrategicContext,
+    timeMachineDate
 }) => {
-    const [mapStyle, setMapStyle] = useState('dark');
+    const [mapStyle, setMapStyle] = useState('voyager');
     const disasterResource = useLiveResource(useCallback(() => fetchNaturalDisasters(), []), {
         cacheKey: 'map:disasters',
         enabled: activeLayers.includes('disasters'),
@@ -375,6 +377,12 @@ const MapContainer = ({
         intervalMs: 2 * 60 * 1000,
         isUsable: hasFeatureData
     });
+    const acledResource = useLiveResource(useCallback(() => fetchAcledEvents(), []), {
+        cacheKey: 'map:acled',
+        enabled: activeLayers.includes('conflicts'),
+        intervalMs: 60 * 60 * 1000,
+        isUsable: hasFeatureData
+    });
 
     const disastersData = disasterResource.data;
     const crisesData = conflictResource.data;
@@ -385,6 +393,7 @@ const MapContainer = ({
     const firmsData = firmsResource.data;
     const infraData = infraResource.data;
     const flightsData = flightsResource.data;
+    const acledData = acledResource.data;
     const publicSentinelLayerId = getPublicSentinelLayerId(copernicusMode);
     const publicSentinelLayer = getEoLayerById(publicSentinelLayerId);
     const publicOverlayVisible = Boolean(
@@ -786,7 +795,11 @@ const MapContainer = ({
                                 'circle-color': [
                                     'match', ['get', 'status'],
                                     'alert', '#ef4444',
-                                    'monitoring', '#f59e0b',
+                                    'damaged', '#ef4444',
+                                    'closed', '#dc2626',
+                                    'at_risk', '#f59e0b',
+                                    'intermittent', '#f59e0b',
+                                    'monitoring', '#eab308',
                                     '#22c55e'
                                 ],
                                 'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 4, 8, 8],
@@ -795,7 +808,11 @@ const MapContainer = ({
                                 'circle-stroke-color': [
                                     'match', ['get', 'status'],
                                     'alert', '#ef4444',
-                                    'monitoring', '#f59e0b',
+                                    'damaged', '#ef4444',
+                                    'closed', '#dc2626',
+                                    'at_risk', '#f59e0b',
+                                    'intermittent', '#f59e0b',
+                                    'monitoring', '#eab308',
                                     '#22c55e'
                                 ],
                                 'circle-stroke-opacity': 0.3
@@ -832,6 +849,55 @@ const MapContainer = ({
                                 'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 1.5, 8, 3],
                                 'circle-opacity': 0.5,
                                 'circle-blur': 0.3
+                            }}
+                        />
+                    </Source>
+                )}
+
+                {/* ACLED Conflict Events Layer */}
+                {activeLayers.includes('conflicts') && acledData?.features?.length > 0 && (
+                    <Source id="acled-data" type="geojson" data={acledData}>
+                        <Layer
+                            id="acled-heatmap"
+                            type="heatmap"
+                            maxzoom={7}
+                            paint={{
+                                'heatmap-weight': ['interpolate', ['linear'], ['get', 'fatalities'], 0, 0.2, 10, 0.6, 50, 1],
+                                'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 2, 0.4, 6, 1],
+                                'heatmap-color': [
+                                    'interpolate', ['linear'], ['heatmap-density'],
+                                    0, 'rgba(0,0,0,0)',
+                                    0.15, 'rgba(255,200,50,0.12)',
+                                    0.3, 'rgba(255,120,30,0.25)',
+                                    0.5, 'rgba(255,60,20,0.45)',
+                                    0.7, 'rgba(200,20,10,0.65)',
+                                    1, 'rgba(180,0,0,0.85)'
+                                ],
+                                'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 2, 12, 5, 25, 7, 35],
+                                'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 6, 0.7, 8, 0]
+                            }}
+                        />
+                        <Layer
+                            id="acled-circles"
+                            type="circle"
+                            minzoom={5}
+                            paint={{
+                                'circle-color': [
+                                    'match', ['get', 'eventType'],
+                                    'Battles', '#ef4444',
+                                    'Explosions/Remote violence', '#f97316',
+                                    'Violence against civilians', '#dc2626',
+                                    'Strategic developments', '#3b82f6',
+                                    '#f59e0b'
+                                ],
+                                'circle-radius': [
+                                    'interpolate', ['linear'],
+                                    ['coalesce', ['get', 'fatalities'], 0],
+                                    0, 3, 5, 5, 20, 8, 100, 14
+                                ],
+                                'circle-opacity': 0.75,
+                                'circle-stroke-width': 1,
+                                'circle-stroke-color': 'rgba(255,255,255,0.3)'
                             }}
                         />
                     </Source>

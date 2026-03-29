@@ -13,6 +13,8 @@ import { computeInfrastructureStatus } from '../server/lib/infrastructure.mjs';
 import { fetchGdeltSentiment } from '../server/lib/gdelt.mjs';
 import { fetchOpenSkyPayload } from '../server/lib/opensky.mjs';
 import { computeFrontStatus } from '../server/lib/frontStatus.mjs';
+import { fetchAcledEvents } from '../server/lib/acled.mjs';
+import { fetchOilPriceTimeline } from '../server/lib/eia.mjs';
 import { fetchNgaWarnings } from '../server/lib/ngaWarnings.mjs';
 import { fetchUsgsQuakes } from '../server/lib/usgsQuakes.mjs';
 
@@ -141,6 +143,18 @@ export default async function handler(req, res) {
             const theater = url.searchParams.get('theater') || 'middleeast';
             const result = await useCached(`opensky:${theater}`, 120000,
                 () => fetchOpenSkyPayload(theater), (p) => p?.type === 'FeatureCollection');
+            return json(res, 200, result.payload, result.meta);
+        }
+
+        if (pathname === '/api/acled' || pathname === '/api/acled/') {
+            const result = await useCached('acled:middleeast', 3600000,
+                () => fetchAcledEvents(), (p) => p?.type === 'FeatureCollection');
+            return json(res, 200, result.payload, result.meta);
+        }
+
+        if (pathname === '/api/oil-prices' || pathname === '/api/oil-prices/') {
+            const result = await useCached('oil-prices', 1800000,
+                () => fetchOilPriceTimeline(), (p) => Array.isArray(p?.brent));
             return json(res, 200, result.payload, result.meta);
         }
 

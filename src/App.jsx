@@ -22,6 +22,8 @@ import IranWarPanel from './components/IranWarPanel';
 import AlertBanner from './components/AlertBanner';
 import MaritimeWarningsPanel from './components/MaritimeWarningsPanel';
 import SeismicPanel from './components/SeismicPanel';
+import TimeMachine from './components/TimeMachine';
+import HormuzTracker from './components/HormuzTracker';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
 
 function App() {
@@ -47,6 +49,8 @@ function App() {
     pitch: 25,
     bearing: -8
   });
+
+  const [timeMachineDate, setTimeMachineDate] = useState(null);
 
   const toggleLayer = (layerId) => {
     setActiveLayers(prev =>
@@ -112,6 +116,7 @@ function App() {
             copernicusRuntimeSource={copernicusRuntimeSource}
             showCopernicusOverlay={showCopernicusOverlay}
             showStrategicContext={showStrategicContext}
+            timeMachineDate={timeMachineDate}
           />
         </ErrorBoundary>
 
@@ -127,8 +132,8 @@ function App() {
               <span style={{ fontWeight: 300, letterSpacing: '3px', fontSize: '0.78rem', color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase' }}>
                 GlobeWatch
               </span>
-              <span style={{ fontWeight: 500, letterSpacing: '1.5px', fontSize: '0.52rem', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase' }}>
-                {viewMode === 'depa' ? 'Indo-Pacific' : 'Middle East'} · DNGWS · v3.0
+              <span style={{ fontWeight: 500, letterSpacing: '1.5px', fontSize: '0.52rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }}>
+                {viewMode === 'depa' ? 'Indo-Pacific' : 'Middle East'} · DNGWS · v5.0
               </span>
             </div>
             <ErrorBoundary inline label="Escalation">
@@ -136,7 +141,7 @@ function App() {
             </ErrorBoundary>
             <div style={{
               display: 'flex', alignItems: 'center', gap: '5px',
-              fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.5px',
+              fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', letterSpacing: '0.5px',
               fontFamily: 'var(--font-mono)'
             }}>
               <Eye size={10} style={{ opacity: 0.4 }} />
@@ -254,6 +259,12 @@ function App() {
               <ErrorBoundary inline label="Gulf Security">
                 <IntelligencePanel key={`gulfSecurity:${sourceSetKey}`} briefingId="gulfSecurity" activeSourceIds={activeSources} />
               </ErrorBoundary>
+              <ErrorBoundary inline label="Energy & Oil Impact">
+                <IntelligencePanel key={`energyMarkets:${sourceSetKey}`} briefingId="energyMarkets" activeSourceIds={activeSources} />
+              </ErrorBoundary>
+              <ErrorBoundary inline label="Regional Headlines">
+                <RegionalNewsPanel regionName="Middle East" title="Regional Headlines" activeSourceIds={activeSources} />
+              </ErrorBoundary>
             </>
           ) : (
             <>
@@ -276,6 +287,9 @@ function App() {
               <ErrorBoundary inline label="Proxy Theater">
                 <IntelligencePanel key={`proxyTheater:${sourceSetKey}`} briefingId="proxyTheater" activeSourceIds={activeSources} />
               </ErrorBoundary>
+              <ErrorBoundary inline label="Hormuz Crisis">
+                <HormuzTracker />
+              </ErrorBoundary>
               <ErrorBoundary inline label="Maritime Warnings">
                 <MaritimeWarningsPanel />
               </ErrorBoundary>
@@ -295,6 +309,13 @@ function App() {
         <ErrorBoundary inline label="Live Feed">
           <LiveIntelligenceFeed key={`ticker:${sourceSetKey}`} activeSourceIds={activeSources} />
         </ErrorBoundary>
+
+        {/* Time Machine — date slider for historical data */}
+        {viewMode === 'middleeast' && (
+          <ErrorBoundary inline label="Time Machine">
+            <TimeMachine onDateChange={setTimeMachineDate} />
+          </ErrorBoundary>
+        )}
 
         {/* Floating: Region selector */}
         <RegionSelector

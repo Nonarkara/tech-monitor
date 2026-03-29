@@ -20,6 +20,8 @@ import { fetchOpenSkyPayload } from './lib/opensky.mjs';
 import { computeFrontStatus } from './lib/frontStatus.mjs';
 import { fetchNgaWarnings } from './lib/ngaWarnings.mjs';
 import { fetchUsgsQuakes } from './lib/usgsQuakes.mjs';
+import { fetchAcledEvents } from './lib/acled.mjs';
+import { fetchOilPriceTimeline } from './lib/eia.mjs';
 import { searchStacScenes } from './lib/stacCatalog.mjs';
 import { searchPlanetaryComputer } from './lib/planetaryComputer.mjs';
 import { listPresets as listEvalscriptPresets } from './lib/evalscripts.mjs';
@@ -270,6 +272,28 @@ const server = http.createServer(async (request, response) => {
                 2 * 60 * 1000,
                 () => fetchOpenSkyPayload(theater),
                 (p) => p?.type === 'FeatureCollection'
+            );
+            json(response, 200, result.payload, result.meta);
+            return;
+        }
+
+        if (url.pathname === '/api/acled') {
+            const result = await useCached(
+                'acled:middleeast',
+                60 * 60 * 1000,  // 1 hour cache
+                () => fetchAcledEvents(),
+                (p) => p?.type === 'FeatureCollection'
+            );
+            json(response, 200, result.payload, result.meta);
+            return;
+        }
+
+        if (url.pathname === '/api/oil-prices') {
+            const result = await useCached(
+                'oil-prices',
+                30 * 60 * 1000,
+                () => fetchOilPriceTimeline(),
+                (p) => Array.isArray(p?.brent)
             );
             json(response, 200, result.payload, result.meta);
             return;

@@ -1,15 +1,15 @@
 :root {
   /* Jony Ive: near-black base, frosted glass surfaces */
-  --bg-dark: #06090f;
-  --bg-panel: rgba(12, 16, 24, 0.72);
-  --surface-color: rgba(255, 255, 255, 0.05);
-  --surface-translucent: rgba(255, 255, 255, 0.04);
-  --surface-hover: rgba(255, 255, 255, 0.08);
-  --shadow-color: rgba(0, 0, 0, 0.3);
+  --bg-dark: #141a24;
+  --bg-panel: rgba(22, 28, 40, 0.78);
+  --surface-color: rgba(255, 255, 255, 0.09);
+  --surface-translucent: rgba(255, 255, 255, 0.08);
+  --surface-hover: rgba(255, 255, 255, 0.13);
+  --shadow-color: rgba(0, 0, 0, 0.22);
   --bg-blur: blur(24px);
   /* Typography-driven hierarchy */
   --text-main: rgba(255, 255, 255, 0.92);
-  --text-muted: rgba(255, 255, 255, 0.45);
+  --text-muted: rgba(255, 255, 255, 0.62);
   /* Meaning-only color — no decorative color */
   --accent-blue: #3b82f6;
   --accent-yellow: #3b82f6;
@@ -17,7 +17,7 @@
   --accent-red: #ef4444;
   --accent-amber: #f59e0b;
   --accent-cyan: #38bdf8;
-  --border-color: rgba(255, 255, 255, 0.06);
+  --border-color: rgba(255, 255, 255, 0.12);
   /* Generous radii for glass feel */
   --radius-lg: 20px;
   --radius-md: 14px;
@@ -68,8 +68,8 @@ body {
   z-index: 1;
   pointer-events: none;
   background:
-    radial-gradient(ellipse at 50% 40%, transparent 0%, transparent 40%, rgba(6, 9, 15, 0.15) 70%, rgba(6, 9, 15, 0.4) 100%),
-    linear-gradient(180deg, rgba(6, 9, 15, 0.25) 0%, transparent 15%, transparent 85%, rgba(6, 9, 15, 0.3) 100%);
+    radial-gradient(ellipse at 50% 40%, transparent 0%, transparent 50%, rgba(6, 9, 15, 0.06) 75%, rgba(6, 9, 15, 0.18) 100%),
+    linear-gradient(180deg, rgba(6, 9, 15, 0.1) 0%, transparent 12%, transparent 88%, rgba(6, 9, 15, 0.12) 100%);
 }
 
 .map-grid-overlay {
@@ -307,7 +307,7 @@ body {
 .grid-panel {
   pointer-events: auto;
   border: 1px solid var(--border-color);
-  background: var(--surface-translucent);
+  background: var(--bg-panel);
   backdrop-filter: blur(24px) saturate(1.2);
   -webkit-backdrop-filter: blur(24px) saturate(1.2);
   border-radius: var(--radius-md);
@@ -405,7 +405,7 @@ body {
 
 .right-sidebar {
   grid-column: 3;
-  grid-row: 3;
+  grid-row: 3 / 5;
   gap: 8px;
   display: flex;
   flex-direction: column;
@@ -416,7 +416,7 @@ body {
 }
 
 .right-sidebar>.bottom-card {
-  max-height: 50%;
+  max-height: none;
   flex-shrink: 1;
   display: flex;
   flex-direction: column;
@@ -429,7 +429,7 @@ body {
    ═══════════════════════════════════════════ */
 
 .bottom-bar {
-  grid-column: 2 / -1;
+  grid-column: 2 / 3;
   grid-row: 4;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -474,7 +474,7 @@ body {
 .bottom-card {
   pointer-events: auto;
   border: 1px solid var(--border-color);
-  background: var(--surface-translucent);
+  background: var(--bg-panel);
   backdrop-filter: blur(24px) saturate(1.2);
   -webkit-backdrop-filter: blur(24px) saturate(1.2);
   border-radius: var(--radius-sm);
@@ -1712,6 +1712,14 @@ body {
   border-left-color: var(--accent-cyan);
 }
 
+.right-sidebar>.bottom-card:nth-child(3) .panel-header {
+  border-left-color: var(--accent-amber);
+}
+
+.right-sidebar>.bottom-card:nth-child(4) .panel-header {
+  border-left-color: var(--accent-green);
+}
+
 .bottom-bar>.bottom-card:nth-child(2) .panel-header {
   border-left-color: var(--accent-amber);
 }
@@ -1736,6 +1744,14 @@ body {
 
 .right-sidebar>*:nth-child(2) {
   animation-delay: 0.25s;
+}
+
+.right-sidebar>*:nth-child(3) {
+  animation-delay: 0.35s;
+}
+
+.right-sidebar>*:nth-child(4) {
+  animation-delay: 0.45s;
 }
 
 .bottom-bar>*:nth-child(1) {
