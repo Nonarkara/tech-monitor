@@ -153,20 +153,20 @@ function App() {
         {/* Row 2: Header bar — 3-section layout: logos | center title | controls */}
         <div className="header-bar grid-panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           {/* Left: Logo strip */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '0 0 auto' }}>
-            <img src="/pmua-logo.webp" alt="PMUA" style={{ height: '18px', objectFit: 'contain', opacity: 0.8 }} />
-            <img src="/Logo depa-01.png" alt="depa" style={{ height: '18px', objectFit: 'contain', opacity: 0.8 }} />
-            <img src="/smart-city-thailand-logo.svg" alt="Smart City Thailand" style={{ height: '18px', objectFit: 'contain', opacity: 0.8, filter: 'brightness(1.5)' }} />
-            <img src="/axiom-logo.png" alt="Axiom AI" style={{ height: '16px', objectFit: 'contain', opacity: 0.8 }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: '0 0 auto' }}>
+            <img src="/pmua-logo.webp" alt="PMUA" style={{ height: '15px', objectFit: 'contain', opacity: 0.75 }} />
+            <img src="/Logo depa-01.png" alt="depa" style={{ height: '15px', objectFit: 'contain', opacity: 0.75 }} />
+            <img src="/smart-city-thailand-logo.svg" alt="Smart City Thailand" style={{ height: '15px', objectFit: 'contain', opacity: 0.75, filter: 'brightness(1.5)' }} />
+            <img src="/axiom-logo.png" alt="Axiom AI" style={{ height: '14px', objectFit: 'contain', opacity: 0.75 }} />
           </div>
 
           {/* Center: Title + Escalation + Status */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: '1 1 auto', justifyContent: 'center' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.3, textAlign: 'center' }}>
-              <span style={{ fontWeight: 300, letterSpacing: '3px', fontSize: '0.78rem', color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1 1 auto', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2, textAlign: 'center' }}>
+              <span style={{ fontWeight: 300, letterSpacing: '2.5px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase' }}>
                 Global Political Dashboard
               </span>
-              <span style={{ fontWeight: 500, letterSpacing: '1.5px', fontSize: '0.48rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>
+              <span style={{ fontWeight: 500, letterSpacing: '1.5px', fontSize: '0.42rem', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase' }}>
                 {viewMode === 'depa' ? 'Indo-Pacific' : 'Middle East'} · GlobeWatch · v8.0
               </span>
             </div>
