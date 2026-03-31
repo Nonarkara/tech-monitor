@@ -82,39 +82,28 @@ const Sidebar = ({
         <aside className="grid-panel" style={{ flex: 1 }}>
             <div className="sidebar-header">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {/* Main sponsor — PMUA / Global Geopolitical Watch */}
+                    {/* Logo strip — all sponsors in one clean row */}
                     <div style={{
                         backgroundColor: '#ffffff',
-                        padding: '10px 14px',
-                        borderRadius: '12px',
+                        padding: '8px 12px',
+                        borderRadius: '10px',
                         display: 'flex',
-                        flexDirection: 'column',
                         alignItems: 'center',
-                        gap: '6px'
-                    }}>
-                        <img src="/pmua-logo.webp" alt="PMUA - Global Geopolitical Watch" style={{ height: '52px', objectFit: 'contain' }} onError={(e) => e.target.style.display = 'none'} />
-                        <span style={{ fontSize: '0.46rem', fontWeight: 700, letterSpacing: '1.5px', color: '#374785', textTransform: 'uppercase', textAlign: 'center' }}>
-                            Global Geopolitical Watch
-                        </span>
-                    </div>
-                    {/* Secondary sponsors */}
-                    <div style={{
-                        display: 'flex',
                         justifyContent: 'center',
-                        alignItems: 'center',
-                        gap: '8px',
-                        opacity: 0.7
+                        gap: '10px'
                     }}>
-                        <img src="/Logo on White BG-01.jpg" alt="depa" style={{ height: '22px', objectFit: 'contain', borderRadius: '4px' }} onError={(e) => e.target.style.display = 'none'} />
-                        <span style={{ fontSize: '0.44rem', fontWeight: 600, letterSpacing: '0.8px', color: 'rgba(255,255,255,0.4)', padding: '2px 6px', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                            SMART CITY TH
-                        </span>
-                        <img src="/mdes.png" alt="MDES" style={{ height: '20px', objectFit: 'contain' }} onError={(e) => e.target.style.display = 'none'} />
+                        <img src="/pmua-logo.webp" alt="PMUA" style={{ height: '28px', objectFit: 'contain' }} onError={(e) => e.target.style.display = 'none'} />
+                        <div style={{ width: '1px', height: '20px', background: 'rgba(0,0,0,0.1)' }} />
+                        <img src="/Logo depa-01.png" alt="depa" style={{ height: '24px', objectFit: 'contain' }} onError={(e) => e.target.style.display = 'none'} />
+                        <div style={{ width: '1px', height: '20px', background: 'rgba(0,0,0,0.1)' }} />
+                        <img src="/smart-city-thailand-logo.svg" alt="Smart City Thailand" style={{ height: '24px', objectFit: 'contain' }} onError={(e) => e.target.style.display = 'none'} />
+                        <div style={{ width: '1px', height: '20px', background: 'rgba(0,0,0,0.1)' }} />
+                        <img src="/axiom-logo.png" alt="Axiom AI" style={{ height: '22px', objectFit: 'contain' }} onError={(e) => e.target.style.display = 'none'} />
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <span style={{ fontSize: '0.95rem', fontWeight: 300, letterSpacing: '-0.2px', color: 'var(--text-main)' }}>Dr Non's GlobeWatch</span>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 300, letterSpacing: '0.5px', color: 'var(--text-main)' }}>Global Political Dashboard</span>
                         <span style={{ fontSize: '0.52rem', color: 'rgba(255,255,255,0.3)', fontWeight: 500, letterSpacing: '1.5px', textTransform: 'uppercase' }}>
-                            {viewMode === 'depa' ? 'Indo-Pacific' : 'Middle East'} · DNGWS · by Dr Non / depa
+                            {viewMode === 'depa' ? 'Indo-Pacific' : 'Middle East'} · GlobeWatch v7.0
                         </span>
                     </div>
                 </div>

@@ -1,0 +1,86 @@
+{
+  "facilities": [
+    {
+      "id": "natanz",
+      "name": "Natanz (FEP)",
+      "type": "Enrichment",
+      "status": "destroyed",
+      "statusColor": "#ef4444",
+      "lat": 33.72,
+      "lon": 51.73,
+      "description": "Main uranium enrichment facility. 50,000+ centrifuges pre-war. Destroyed in first-wave strikes Feb 28.",
+      "enrichmentPre": "60%",
+      "enrichmentPost": "N/A — destroyed",
+      "iaeaAccess": "suspended"
+    },
+    {
+      "id": "fordow",
+      "name": "Fordow (FFEP)",
+      "type": "Enrichment",
+      "status": "damaged",
+      "statusColor": "#f59e0b",
+      "lat": 34.88,
+      "lon": 51.59,
+      "description": "Underground enrichment facility near Qom. Bunker-buster strikes caused partial collapse. Status uncertain.",
+      "enrichmentPre": "60%",
+      "enrichmentPost": "unknown",
+      "iaeaAccess": "denied"
+    },
+    {
+      "id": "isfahan",
+      "name": "Isfahan (UCF)",
+      "type": "Conversion",
+      "status": "damaged",
+      "statusColor": "#f59e0b",
+      "lat": 32.65,
+      "lon": 51.68,
+      "description": "Uranium conversion facility. Secondary strikes damaged conversion lines. Partial operations may continue.",
+      "enrichmentPre": "UF6 production",
+      "enrichmentPost": "degraded",
+      "iaeaAccess": "denied"
+    },
+    {
+      "id": "arak",
+      "name": "Arak (IR-40)",
+      "type": "Heavy Water Reactor",
+      "status": "intact",
+      "statusColor": "#22c55e",
+      "lat": 34.38,
+      "lon": 49.24,
+      "description": "Heavy water reactor. Redesigned under JCPOA. Not targeted in initial strikes. Under IAEA monitoring pre-war.",
+      "enrichmentPre": "plutonium pathway",
+      "enrichmentPost": "operational",
+      "iaeaAccess": "suspended"
+    },
+    {
+      "id": "bushehr",
+      "name": "Bushehr NPP",
+      "type": "Power Reactor",
+      "status": "intact",
+      "statusColor": "#22c55e",
+      "lat": 28.83,
+      "lon": 50.89,
+      "description": "Civilian nuclear power plant (Russian-built). Not targeted — civilian infrastructure. Grid connection disrupted.",
+      "enrichmentPre": "civilian power",
+      "enrichmentPost": "offline (grid damage)",
+      "iaeaAccess": "limited"
+    }
+  ],
+  "timeline": [
+    { "date": "2026-02-28", "event": "First strikes destroy Natanz centrifuge halls", "severity": "critical" },
+    { "date": "2026-02-28", "event": "Bunker-busters target Fordow underground facility", "severity": "critical" },
+    { "date": "2026-03-01", "event": "Isfahan conversion facility hit in second wave", "severity": "high" },
+    { "date": "2026-03-02", "event": "Iran suspends all IAEA inspections", "severity": "high" },
+    { "date": "2026-03-05", "event": "IAEA confirms loss of monitoring at all sites", "severity": "high" },
+    { "date": "2026-03-08", "event": "US confirms Natanz 'functionally destroyed'", "severity": "critical" },
+    { "date": "2026-03-12", "event": "Iran threatens to withdraw from NPT", "severity": "high" },
+    { "date": "2026-03-15", "event": "Satellite imagery shows Fordow crater formations", "severity": "moderate" },
+    { "date": "2026-03-20", "event": "Iran claims covert enrichment at undisclosed site", "severity": "critical" },
+    { "date": "2026-03-25", "event": "IAEA Board emergency session on Iran monitoring gap", "severity": "moderate" }
+  ],
+  "breakoutEstimate": {
+    "preWar": "2-3 weeks",
+    "postWar": "12-18 months (if facilities rebuilt)",
+    "uncertainty": "High — covert sites suspected"
+  }
+}

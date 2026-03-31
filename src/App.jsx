@@ -35,6 +35,9 @@ import SanctionsPanel from './components/SanctionsPanel';
 import WarCostTracker from './components/WarCostTracker';
 import ConflictChronicle from './components/ConflictChronicle';
 import ActorNetworkModal from './components/ActorNetworkModal';
+import NuclearTrackerPanel from './components/NuclearTrackerPanel';
+import KeyFiguresPanel from './components/KeyFiguresPanel';
+import InternationalResponsePanel from './components/InternationalResponsePanel';
 
 function App() {
   const [activeLayers, setActiveLayers] = useState(['disasters', 'weather', 'economy', 'conflicts', 'aqi', 'firms']);
@@ -317,6 +320,12 @@ function App() {
               <ErrorBoundary inline label="Conflict Analytics">
                 <AcledAnalytics />
               </ErrorBoundary>
+              <ErrorBoundary inline label="Key Figures">
+                <KeyFiguresPanel />
+              </ErrorBoundary>
+              <ErrorBoundary inline label="International Response">
+                <InternationalResponsePanel />
+              </ErrorBoundary>
               <ErrorBoundary inline label="Gulf Security">
                 <IntelligencePanel key={`gulfSecurity:${sourceSetKey}`} briefingId="gulfSecurity" activeSourceIds={activeSources} />
               </ErrorBoundary>
@@ -359,6 +368,9 @@ function App() {
               </ErrorBoundary>
               <ErrorBoundary inline label="War Cost">
                 <WarCostTracker />
+              </ErrorBoundary>
+              <ErrorBoundary inline label="Nuclear Program">
+                <NuclearTrackerPanel onFlyTo={handleChronicleFlyTo} />
               </ErrorBoundary>
               <ErrorBoundary inline label="Hormuz Crisis">
                 <HormuzTracker />

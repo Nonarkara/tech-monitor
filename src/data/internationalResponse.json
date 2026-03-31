@@ -1,0 +1,80 @@
+{
+  "unscVotes": [
+    {
+      "date": "2026-03-05",
+      "resolution": "Draft Ceasefire Resolution",
+      "result": "vetoed",
+      "resultColor": "#ef4444",
+      "for": 11,
+      "against": 1,
+      "abstain": 3,
+      "vetoBy": "United States",
+      "description": "Russia-China ceasefire draft. US veto — cited Iran's nuclear threat as ongoing."
+    },
+    {
+      "date": "2026-03-12",
+      "resolution": "Humanitarian Access Resolution",
+      "result": "adopted",
+      "resultColor": "#22c55e",
+      "for": 14,
+      "against": 0,
+      "abstain": 1,
+      "vetoBy": null,
+      "description": "Unanimous demand for humanitarian corridors. China abstained."
+    },
+    {
+      "date": "2026-03-14",
+      "resolution": "Arms Embargo Extension",
+      "result": "adopted",
+      "resultColor": "#22c55e",
+      "for": 11,
+      "against": 2,
+      "abstain": 2,
+      "vetoBy": null,
+      "description": "Extended arms embargo on Iran. Russia and China voted against but did not veto."
+    },
+    {
+      "date": "2026-03-22",
+      "resolution": "Draft Condemn US Strikes",
+      "result": "vetoed",
+      "resultColor": "#ef4444",
+      "for": 4,
+      "against": 3,
+      "abstain": 8,
+      "vetoBy": "US, UK, France",
+      "description": "Iran-backed resolution condemning strikes. Triple veto by P3 Western members."
+    },
+    {
+      "date": "2026-03-28",
+      "resolution": "Nuclear Monitoring Restoration",
+      "result": "adopted",
+      "resultColor": "#22c55e",
+      "for": 15,
+      "against": 0,
+      "abstain": 0,
+      "vetoBy": null,
+      "description": "Unanimous call for immediate IAEA access restoration to all Iranian nuclear sites."
+    }
+  ],
+  "coalitionPositions": [
+    { "actor": "United States", "position": "Active belligerent", "color": "#3b82f6", "stance": "Leading strikes with Israel. Carrier groups deployed. Full sanctions." },
+    { "actor": "United Kingdom", "position": "Coalition partner", "color": "#3b82f6", "stance": "RAF operations from Cyprus. Naval support. Intelligence sharing." },
+    { "actor": "France", "position": "Supportive", "color": "#3b82f6", "stance": "Diplomatic support. Not participating in strikes. EU sanctions lead." },
+    { "actor": "Germany", "position": "Cautious support", "color": "#38bdf8", "stance": "Arms export freeze to Iran. Hosting diplomatic back-channels." },
+    { "actor": "Russia", "position": "Pro-Iran", "color": "#ef4444", "stance": "Condemns strikes. Arms supply paused. UNSC vetoes for Iran." },
+    { "actor": "China", "position": "Pro-Iran", "color": "#ef4444", "stance": "Mediation offers. Continues oil purchases via workarounds. UNSC abstentions." },
+    { "actor": "India", "position": "Neutral", "color": "#f59e0b", "stance": "Calls for restraint. Concerned with oil supply disruption." },
+    { "actor": "Turkey", "position": "Critical neutral", "color": "#f59e0b", "stance": "Opposes strikes. Denies airspace. Hosting refugees. NATO tensions." },
+    { "actor": "Saudi Arabia", "position": "Defensive", "color": "#22c55e", "stance": "Not participating in strikes. Defending oil infrastructure. Quiet coordination." },
+    { "actor": "UAE", "position": "Defensive", "color": "#22c55e", "stance": "Hosting US forces at Al Dhafra. Not publicly endorsing strikes." }
+  ],
+  "generalAssembly": {
+    "date": "2026-03-18",
+    "resolution": "Emergency Special Session — Ceasefire Demand",
+    "result": "adopted",
+    "for": 143,
+    "against": 9,
+    "abstain": 25,
+    "description": "Non-binding resolution demanding immediate ceasefire. US, Israel, and 7 allies voted against."
+  }
+}
