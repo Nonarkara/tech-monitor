@@ -12,7 +12,4 @@
     { "source": "/api/(.*)", "destination": "/api/index.mjs" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
-  "env": {
-    "FIRMS_MAP_KEY": "2fc787cfb86f86a8b6311b272aecad50"
-  }
 }
