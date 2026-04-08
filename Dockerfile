@@ -18,6 +18,8 @@ COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev --ignore-scripts
 
 COPY server/ ./server/
+COPY src/services/ ./src/services/
+COPY src/data/ ./src/data/
 COPY --from=builder /app/dist ./dist/
 
 EXPOSE 4000
