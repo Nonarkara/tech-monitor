@@ -81,30 +81,11 @@ const Sidebar = ({
     return (
         <aside className="grid-panel" style={{ flex: 1 }}>
             <div className="sidebar-header">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {/* Logo strip — white pill for visibility */}
-                    <div style={{
-                        background: '#ffffff',
-                        padding: '5px 10px',
-                        borderRadius: '8px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px'
-                    }}>
-                        <img src={`${import.meta.env.BASE_URL}pmua-logo.webp`} alt="PMUA" style={{ height: '22px', objectFit: 'contain' }} onError={(e) => e.target.style.display = 'none'} />
-                        <div style={{ width: '1px', height: '16px', background: 'rgba(0,0,0,0.08)' }} />
-                        <img src={`${import.meta.env.BASE_URL}Logo depa-01.png`} alt="depa" style={{ height: '16px', objectFit: 'contain' }} onError={(e) => e.target.style.display = 'none'} />
-                        <div style={{ width: '1px', height: '16px', background: 'rgba(0,0,0,0.08)' }} />
-                        <img src={`${import.meta.env.BASE_URL}axiom-logo.png`} alt="Axiom" style={{ height: '16px', objectFit: 'contain' }} onError={(e) => e.target.style.display = 'none'} />
-                        <img src={`${import.meta.env.BASE_URL}retl-logo.svg`} alt="ReTL" style={{ height: '15px', objectFit: 'contain' }} onError={(e) => e.target.style.display = 'none'} />
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 300, letterSpacing: '0.3px', color: 'var(--text-main)' }}>Global Political Dashboard</span>
-                        <span style={{ fontSize: '0.46rem', color: 'rgba(255,255,255,0.25)', fontWeight: 500, letterSpacing: '1.2px', textTransform: 'uppercase' }}>
-                            {viewMode === 'depa' ? 'Indo-Pacific' : 'Middle East'} · GlobeWatch v8.0
-                        </span>
-                    </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 300, letterSpacing: '0.3px', color: 'var(--text-main)' }}>Global Political Dashboard</span>
+                    <span style={{ fontSize: '0.46rem', color: 'rgba(255,255,255,0.25)', fontWeight: 500, letterSpacing: '1.2px', textTransform: 'uppercase' }}>
+                        {viewMode === 'depa' ? 'Indo-Pacific' : 'Middle East'} · GlobeWatch v8.0
+                    </span>
                 </div>
             </div>
             <div ref={contentRef} className="sidebar-content">
