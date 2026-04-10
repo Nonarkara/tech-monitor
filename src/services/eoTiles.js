@@ -14,10 +14,14 @@
 const gibsTileUrl = (layer, tileMatrix = 'GoogleMapsCompatible_Level9', format = 'png') =>
     `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer}/default/{time}/${tileMatrix}/{z}/{y}/{x}.${format}`;
 
-/** Today in YYYY-MM-DD for tile requests */
+/**
+ * GIBS date for tile requests.
+ * MODIS data has 1-2 day processing lag — using 2 days ago is more reliable
+ * than yesterday. Falls back gracefully (NASA returns blank tiles, not errors).
+ */
 const yesterday = () => {
     const d = new Date();
-    d.setDate(d.getDate() - 1);
+    d.setDate(d.getDate() - 2); // 2 days ago — matches MODIS processing lag
     return d.toISOString().slice(0, 10);
 };
 

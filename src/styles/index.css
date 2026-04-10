@@ -58,6 +58,19 @@
   padding: 0;
 }
 
+/* Fluid root font — scales everything proportionally for any screen size.
+   13px on mobile → ~16px on 1440px laptop → ~24px on 4K/72" display */
+html {
+  font-size: clamp(13px, 1.15vw, 24px);
+}
+
+@media (min-width: 2560px) {
+  html { font-size: clamp(16px, 1.1vw, 28px); }
+}
+@media (min-width: 3840px) {
+  html { font-size: clamp(20px, 1vw, 32px); }
+}
+
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background-color: var(--bg-dark);
