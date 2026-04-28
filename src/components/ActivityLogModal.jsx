@@ -55,7 +55,7 @@ const ActivityLogModal = ({ isOpen, onClose }) => {
             position: 'fixed', inset: 0, zIndex: 10000,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)'
-        }}>
+        }} onClick={onClose}>
             <div style={{
                 width: '640px', maxWidth: '95vw', maxHeight: '80vh',
                 background: 'rgba(14, 18, 28, 0.95)',
@@ -63,7 +63,7 @@ const ActivityLogModal = ({ isOpen, onClose }) => {
                 borderRadius: '16px',
                 border: '1px solid rgba(255,255,255,0.08)',
                 overflow: 'hidden', display: 'flex', flexDirection: 'column'
-            }}>
+            }} onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <div style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -97,11 +97,11 @@ const ActivityLogModal = ({ isOpen, onClose }) => {
                         </button>
                         <button onClick={onClose} style={{
                             background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
-                            borderRadius: '6px', padding: '4px 8px', color: 'rgba(255,255,255,0.5)',
-                            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
-                            fontSize: '0.5rem', fontFamily: 'inherit'
+                            borderRadius: '6px', padding: '6px 12px', color: 'rgba(255,255,255,0.6)',
+                            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
+                            fontSize: '0.6rem', fontFamily: 'inherit', minHeight: '32px'
                         }}>
-                            <X size={12} />
+                            <X size={14} />
                         </button>
                     </div>
                 </div>
