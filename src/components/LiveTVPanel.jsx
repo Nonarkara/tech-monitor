@@ -1,82 +1,27 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Tv, Volume2, VolumeX } from 'lucide-react';
-
-const CHANNELS = [
-  // Page 1
-  {
-    id: 'aljazeera-en',
-    name: 'Al Jazeera',
-    lang: 'EN',
-    color: '#D4A843',
-    embedUrl: 'https://www.youtube.com/embed/gCNeDWCI0vo?autoplay=1&mute=1&enablejsapi=1&controls=0&modestbranding=1',
-    embedUrlUnmuted: 'https://www.youtube.com/embed/gCNeDWCI0vo?autoplay=1&mute=0&enablejsapi=1&controls=0&modestbranding=1',
-  },
-  {
-    id: 'aljazeera-ar',
-    name: 'الجزيرة',
-    lang: 'AR',
-    color: '#D4A843',
-    embedUrl: 'https://www.youtube.com/embed/bNyUyrR0PHo?autoplay=1&mute=1&enablejsapi=1&controls=0&modestbranding=1',
-    embedUrlUnmuted: 'https://www.youtube.com/embed/bNyUyrR0PHo?autoplay=1&mute=0&enablejsapi=1&controls=0&modestbranding=1',
-  },
-  {
-    id: 'france24-en',
-    name: 'France 24',
-    lang: 'EN',
-    color: '#0055A4',
-    embedUrl: 'https://www.youtube.com/embed/live_stream?channel=UCQfwfsi5VrQ8yKZ-UWmAEFg&autoplay=1&mute=1&controls=0&modestbranding=1',
-    embedUrlUnmuted: 'https://www.youtube.com/embed/live_stream?channel=UCQfwfsi5VrQ8yKZ-UWmAEFg&autoplay=1&mute=0&controls=0&modestbranding=1',
-  },
-  {
-    id: 'sky-news-arabia',
-    name: 'Sky News',
-    lang: 'عربية',
-    color: '#C41230',
-    embedUrl: 'https://www.youtube.com/embed/U--OjmpjF5o?autoplay=1&mute=1&enablejsapi=1&controls=0&modestbranding=1',
-    embedUrlUnmuted: 'https://www.youtube.com/embed/U--OjmpjF5o?autoplay=1&mute=0&enablejsapi=1&controls=0&modestbranding=1',
-  },
-  // Page 2 — conflict zone cameras + more networks
-  {
-    id: 'earthlive-me',
-    name: 'ME Cams',
-    lang: 'LIVE',
-    color: '#22c55e',
-    embedUrl: 'https://www.youtube.com/embed/gmtlJ_m2r5A?autoplay=1&mute=1&enablejsapi=1&controls=0&modestbranding=1',
-    embedUrlUnmuted: 'https://www.youtube.com/embed/gmtlJ_m2r5A?autoplay=1&mute=0&enablejsapi=1&controls=0&modestbranding=1',
-  },
-  {
-    id: 'earthlive-cctv',
-    name: 'City CCTV',
-    lang: 'LIVE',
-    color: '#22c55e',
-    embedUrl: 'https://www.youtube.com/embed/2Sl8n9clE8E?autoplay=1&mute=1&enablejsapi=1&controls=0&modestbranding=1',
-    embedUrlUnmuted: 'https://www.youtube.com/embed/2Sl8n9clE8E?autoplay=1&mute=0&enablejsapi=1&controls=0&modestbranding=1',
-  },
-  {
-    id: 'i24-news',
-    name: 'i24 News',
-    lang: 'EN',
-    color: '#0088CC',
-    embedUrl: 'https://www.youtube.com/embed/live_stream?channel=UCp1VEgMfOGBIIwlMDBJwFgA&autoplay=1&mute=1&controls=0&modestbranding=1',
-    embedUrlUnmuted: 'https://www.youtube.com/embed/live_stream?channel=UCp1VEgMfOGBIIwlMDBJwFgA&autoplay=1&mute=0&controls=0&modestbranding=1',
-  },
-  {
-    id: 'trt-world',
-    name: 'TRT World',
-    lang: 'EN',
-    color: '#E30A17',
-    embedUrl: 'https://www.youtube.com/embed/live_stream?channel=UC7fWeaHhqgM4Lba5uttl0SA&autoplay=1&mute=1&controls=0&modestbranding=1',
-    embedUrlUnmuted: 'https://www.youtube.com/embed/live_stream?channel=UC7fWeaHhqgM4Lba5uttl0SA&autoplay=1&mute=0&controls=0&modestbranding=1',
-  },
-];
+import { getRegion } from '../data/regions.js';
 
 const CHANNELS_PER_PAGE = 4;
 
-const LiveTVPanel = () => {
+/**
+ * Region-aware live-TV grid. Reads channel list from the region registry.
+ * Switching viewMode swaps channels with no remount-flicker because we
+ * keep the iframe `src` keyed by channel id, not by region.
+ */
+const LiveTVPanel = ({ viewMode = 'middleeast' }) => {
+  const channels = useMemo(() => getRegion(viewMode).channels, [viewMode]);
   const [activeChannel, setActiveChannel] = useState(null);
   const [page, setPage] = useState(0);
-  const totalPages = Math.ceil(CHANNELS.length / CHANNELS_PER_PAGE);
-  const visibleChannels = CHANNELS.slice(page * CHANNELS_PER_PAGE, (page + 1) * CHANNELS_PER_PAGE);
+  const totalPages = Math.ceil(channels.length / CHANNELS_PER_PAGE);
+  const visibleChannels = channels.slice(page * CHANNELS_PER_PAGE, (page + 1) * CHANNELS_PER_PAGE);
+
+  // Reset to page 0 + clear active channel when region changes — the previous
+  // page index may not exist in the new region's channel list.
+  useEffect(() => {
+    setPage(0);
+    setActiveChannel(null);
+  }, [viewMode]);
 
   const handleChannelClick = useCallback((channelId) => {
     setActiveChannel((prev) => (prev === channelId ? null : channelId));

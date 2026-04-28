@@ -27,6 +27,8 @@ import { searchPlanetaryComputer } from './lib/planetaryComputer.mjs';
 import { listPresets as listEvalscriptPresets } from './lib/evalscripts.mjs';
 import { probeCog } from './lib/cogReader.mjs';
 import { recordToSheets, recordEscalation, getRecordingHealth } from './lib/sheetsRecorder.mjs';
+import { ingestRegionalNews } from './lib/regionalNewsIngest.mjs';
+import { isSupabaseEnabled, getSupabaseStatusMessage } from './lib/supabase.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST_DIR = path.resolve(__dirname, '..', 'dist');
@@ -187,6 +189,35 @@ const server = http.createServer(async (request, response) => {
                 (payload) => Array.isArray(payload?.items) && payload.items.length > 0
             );
             json(response, 200, result.payload, result.meta);
+            return;
+        }
+
+        // Regional country news — backed by Supabase when configured.
+        // ?region=indopacific|thailand&code=TH (or BKK / VN / SG / etc.)
+        if (url.pathname === '/api/regional-news') {
+            const region = url.searchParams.get('region') || 'indopacific';
+            const code = (url.searchParams.get('code') || '').toUpperCase();
+            if (!code) {
+                json(response, 400, { error: 'Missing required ?code param' });
+                return;
+            }
+            const result = await useCached(
+                `regional-news:${region}:${code}`,
+                5 * 60 * 1000,
+                () => ingestRegionalNews(region, code),
+                (payload) => Array.isArray(payload?.items) && payload.items.length > 0
+            );
+            recordHealth('regional-news', !!result.payload?.items?.length, result.payload?.status || null);
+            json(response, 200, result.payload, result.meta);
+            return;
+        }
+
+        // Supabase wiring health check.
+        if (url.pathname === '/api/supabase-health') {
+            json(response, 200, {
+                enabled: isSupabaseEnabled(),
+                message: getSupabaseStatusMessage()
+            });
             return;
         }
 

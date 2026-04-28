@@ -10,9 +10,18 @@
  * All endpoints are free, no API key needed.
  */
 
-/** Build a GIBS WMTS tile URL for a given layer/date/matrix set */
+/** Build a GIBS WMTS tile URL template (single string with {time} placeholder). */
 const gibsTileUrl = (layer, tileMatrix = 'GoogleMapsCompatible_Level9', format = 'png') =>
     `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer}/default/{time}/${tileMatrix}/{z}/{y}/{x}.${format}`;
+
+/** Expand one GIBS tile template into 3 subdomain-rotated URLs so MapLibre can round-robin.
+ *  If one subdomain stalls, the others keep the layer alive. NASA GIBS supports
+ *  gibs.earthdata, gibs-a.earthdata, gibs-b.earthdata as load-balanced mirrors. */
+const gibsRedundant = (url) => [
+    url,
+    url.replace('gibs.earthdata.nasa.gov', 'gibs-a.earthdata.nasa.gov'),
+    url.replace('gibs.earthdata.nasa.gov', 'gibs-b.earthdata.nasa.gov')
+];
 
 /**
  * GIBS date for tile requests.
@@ -36,10 +45,9 @@ export const EO_TILE_LAYERS = [
         description: 'City lights observed by the Suomi-NPP satellite',
         group: 'satellite',
         icon: '🌃',
-        tiles: [
-            gibsTileUrl('VIIRS_SNPP_DayNightBand_AtSensor_M15')
-                .replace('{time}', yesterday())
-        ],
+        tiles: gibsRedundant(
+            gibsTileUrl('VIIRS_SNPP_DayNightBand_AtSensor_M15').replace('{time}', yesterday())
+        ),
         tileSize: 256,
         attribution: 'NASA GIBS / VIIRS',
         opacity: 0.75,
@@ -51,7 +59,7 @@ export const EO_TILE_LAYERS = [
         description: 'Global vegetation index from MODIS satellite',
         group: 'satellite',
         icon: '🌿',
-        tiles: [
+        tiles: gibsRedundant(
             gibsTileUrl('MODIS_Terra_NDVI_8Day', 'GoogleMapsCompatible_Level9', 'png')
                 .replace('{time}', (() => {
                     // NDVI is 8-day composite, use recent available date
@@ -59,7 +67,7 @@ export const EO_TILE_LAYERS = [
                     d.setDate(d.getDate() - 10);
                     return d.toISOString().slice(0, 10);
                 })())
-        ],
+        ),
         tileSize: 256,
         attribution: 'NASA GIBS / MODIS Terra',
         opacity: 0.6,
@@ -71,10 +79,10 @@ export const EO_TILE_LAYERS = [
         description: 'Daily true-color satellite imagery',
         group: 'satellite',
         icon: '🛰️',
-        tiles: [
+        tiles: gibsRedundant(
             gibsTileUrl('VIIRS_SNPP_CorrectedReflectance_TrueColor', 'GoogleMapsCompatible_Level9', 'jpg')
                 .replace('{time}', yesterday())
-        ],
+        ),
         tileSize: 256,
         attribution: 'NASA GIBS / VIIRS',
         opacity: 0.7,
@@ -86,14 +94,14 @@ export const EO_TILE_LAYERS = [
         description: 'Ocean temperature from MODIS satellite',
         group: 'satellite',
         icon: '🌊',
-        tiles: [
+        tiles: gibsRedundant(
             gibsTileUrl('MODIS_Aqua_L3_SST_MidIR_Monthly', 'GoogleMapsCompatible_Level7', 'png')
                 .replace('{time}', (() => {
                     const d = new Date();
                     d.setMonth(d.getMonth() - 1);
                     return d.toISOString().slice(0, 7) + '-01';
                 })())
-        ],
+        ),
         tileSize: 256,
         attribution: 'NASA GIBS / MODIS Aqua',
         opacity: 0.6,
@@ -105,10 +113,10 @@ export const EO_TILE_LAYERS = [
         description: 'Thermal anomalies detected by VIIRS satellite',
         group: 'satellite',
         icon: '🔥',
-        tiles: [
+        tiles: gibsRedundant(
             gibsTileUrl('VIIRS_SNPP_Thermal_Anomalies_375m_All', 'GoogleMapsCompatible_Level9', 'png')
                 .replace('{time}', yesterday())
-        ],
+        ),
         tileSize: 256,
         attribution: 'NASA GIBS / VIIRS',
         opacity: 0.85,
@@ -120,10 +128,10 @@ export const EO_TILE_LAYERS = [
         description: 'Global rainfall estimates from GPM satellite',
         group: 'satellite',
         icon: '🌧️',
-        tiles: [
+        tiles: gibsRedundant(
             gibsTileUrl('IMERG_Precipitation_Rate', 'GoogleMapsCompatible_Level6', 'png')
                 .replace('{time}', yesterday())
-        ],
+        ),
         tileSize: 256,
         attribution: 'NASA GIBS / GPM IMERG',
         opacity: 0.6,
@@ -135,10 +143,10 @@ export const EO_TILE_LAYERS = [
         description: 'Global snow coverage from MODIS',
         group: 'satellite',
         icon: '❄️',
-        tiles: [
+        tiles: gibsRedundant(
             gibsTileUrl('MODIS_Terra_NDSI_Snow_Cover', 'GoogleMapsCompatible_Level9', 'png')
                 .replace('{time}', yesterday())
-        ],
+        ),
         tileSize: 256,
         attribution: 'NASA GIBS / MODIS',
         opacity: 0.55,
@@ -150,10 +158,10 @@ export const EO_TILE_LAYERS = [
         description: 'Atmospheric aerosol optical depth',
         group: 'satellite',
         icon: '💨',
-        tiles: [
+        tiles: gibsRedundant(
             gibsTileUrl('MODIS_Combined_Value_Added_AOD', 'GoogleMapsCompatible_Level6', 'png')
                 .replace('{time}', yesterday())
-        ],
+        ),
         tileSize: 256,
         attribution: 'NASA GIBS / MODIS',
         opacity: 0.55,

@@ -11,6 +11,8 @@ import MarketRadarPanel from './components/MarketRadarPanel';
 import SettingsModal from './components/SettingsModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import { INTELLIGENCE_SOURCES, APAC_SOURCES } from './services/liveNews';
+import { REGIONS, getRegion } from './data/regions';
+import CountryNewsPanel from './components/CountryNewsPanel';
 import { fetchCopernicusPreview } from './services/copernicus';
 import { useLiveResource } from './hooks/useLiveResource';
 import { Settings, RefreshCw, Eye, Network, Database, FileText, Printer, Info } from 'lucide-react';
@@ -51,7 +53,10 @@ function App() {
   const [activeLayers, setActiveLayers] = useState(['disasters', 'weather', 'economy', 'conflicts', 'aqi', 'firms']);
   const [activeRegion, setActiveRegion] = useState('middleeast');
   const [selectedEvent, setSelectedEvent] = useState(null);
-  const [viewMode, setViewMode] = useState('middleeast'); // 'middleeast' or 'depa'
+  // Three-way region nav: 'middleeast' | 'indopacific' | 'thailand'
+  const [viewMode, setViewMode] = useState('middleeast');
+  // Selected country (Indo-Pacific) or province (Thailand) — drives CountryNewsPanel
+  const [selectedCountryCode, setSelectedCountryCode] = useState(null);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isNetworkOpen, setIsNetworkOpen] = useState(false);
@@ -110,7 +115,7 @@ function App() {
   };
 
   const setAllSources = (enable) => {
-    const list = viewMode === 'depa' ? APAC_SOURCES : INTELLIGENCE_SOURCES;
+    const list = viewMode === 'middleeast' ? INTELLIGENCE_SOURCES : APAC_SOURCES;
     setActiveSources(enable ? list.map((source) => source.id) : []);
   };
 
@@ -151,6 +156,20 @@ function App() {
             showCopernicusOverlay={showCopernicusOverlay}
             showStrategicContext={showStrategicContext}
             timeMachineDate={timeMachineDate}
+            viewMode={viewMode}
+            onRegionDotClick={(props) => {
+              const code = props?.countryCode || props?.regionCode;
+              if (code) setSelectedCountryCode(code);
+              if (typeof props?.latitude === 'number' && typeof props?.longitude === 'number') {
+                setViewState((prev) => ({
+                  ...prev,
+                  longitude: props.longitude,
+                  latitude: props.latitude,
+                  zoom: Math.max(prev.zoom, viewMode === 'thailand' ? 6.5 : 4.5),
+                  transitionDuration: 800,
+                }));
+              }
+            }}
           />
         </ErrorBoundary>
 
@@ -176,7 +195,7 @@ function App() {
                 Global Political Dashboard
               </span>
               <span style={{ fontWeight: 500, letterSpacing: '1.5px', fontSize: '0.42rem', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase' }}>
-                {viewMode === 'depa' ? 'Indo-Pacific' : 'Middle East'} · GlobeWatch · v8.0
+                {getRegion(viewMode).label} · GlobeWatch · v8.0
               </span>
             </div>
             <ErrorBoundary inline label="Escalation">
@@ -226,35 +245,52 @@ function App() {
                 <Network size={11} aria-hidden="true" /> Actors
               </button>
             )}
-            <button
-              onClick={() => {
-                const newMode = viewMode === 'middleeast' ? 'depa' : 'middleeast';
-                setViewMode(newMode);
-                setActiveRegion(newMode === 'middleeast' ? 'middleeast' : 'asean');
-                setViewState(newMode === 'middleeast'
-                  ? { longitude: 53, latitude: 30, zoom: 4.5, pitch: 25, bearing: -8 }
-                  : { longitude: 105, latitude: 10, zoom: 4, pitch: 0, bearing: 0 }
-                );
-                setActiveSources(newMode === 'middleeast' ? INTELLIGENCE_SOURCES.map(s => s.id) : APAC_SOURCES.map(s => s.id));
-              }}
+            <div
+              role="tablist"
+              aria-label="Theater region selector"
               style={{
-                background: 'rgba(255,255,255,0.05)',
+                display: 'inline-flex',
+                gap: 0,
+                background: 'rgba(255,255,255,0.04)',
                 border: '1px solid rgba(255,255,255,0.08)',
-                color: 'rgba(255,255,255,0.6)',
-                padding: '5px 14px',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                cursor: 'pointer',
-                fontSize: '0.65rem',
-                fontFamily: 'inherit',
-                transition: 'all 0.3s',
-                letterSpacing: '0.5px'
               }}
             >
-              <RefreshCw size={11} /> {viewMode === 'middleeast' ? 'Indo-Pacific' : 'Middle East'}
-            </button>
+              {Object.values(REGIONS).map((r) => {
+                const isActive = viewMode === r.id;
+                return (
+                  <button
+                    key={r.id}
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => {
+                      setViewMode(r.id);
+                      setActiveRegion(r.id === 'middleeast' ? 'middleeast' : r.id === 'indopacific' ? 'asean' : 'thailand');
+                      setViewState({ ...r.viewState, transitionDuration: 1200 });
+                      setActiveSources(r.id === 'middleeast'
+                        ? INTELLIGENCE_SOURCES.map(s => s.id)
+                        : APAC_SOURCES.map(s => s.id));
+                      setSelectedCountryCode(null);
+                    }}
+                    style={{
+                      background: isActive ? 'rgba(56,189,248,0.18)' : 'transparent',
+                      border: 'none',
+                      borderLeft: r.id === 'middleeast' ? 'none' : '1px solid rgba(255,255,255,0.08)',
+                      color: isActive ? '#dbeafe' : 'rgba(255,255,255,0.55)',
+                      padding: '6px 14px',
+                      cursor: 'pointer',
+                      fontSize: '0.65rem',
+                      fontFamily: 'inherit',
+                      letterSpacing: '0.6px',
+                      textTransform: 'uppercase',
+                      transition: 'all 0.2s',
+                      minHeight: 28,
+                    }}
+                  >
+                    {r.label}
+                  </button>
+                );
+              })}
+            </div>
             <button onClick={() => setIsSourceHealthOpen(true)} title="Data Sources & Health" aria-label="View data source health and provenance"
               style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.35)',
                 padding: '5px 8px', borderRadius: '8px', display: 'flex', alignItems: 'center', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.3s' }}>
@@ -310,15 +346,15 @@ function App() {
             />
           </ErrorBoundary>
           {viewMode === 'middleeast' && (
-            <>
-              <ErrorBoundary inline label="Flight Radar">
-                <FlightRadarEmbed />
-              </ErrorBoundary>
-              <ErrorBoundary inline label="Live TV">
-                <LiveTVPanel />
-              </ErrorBoundary>
-            </>
+            <ErrorBoundary inline label="Flight Radar">
+              <FlightRadarEmbed />
+            </ErrorBoundary>
           )}
+          {/* Live TV is always present so switching regions just swaps channels
+              instead of unmounting the iframe — keeps panel stable across nav. */}
+          <ErrorBoundary inline label="Live TV">
+            <LiveTVPanel viewMode={viewMode} />
+          </ErrorBoundary>
         </div>
 
         {/* Row 3: Right sidebar */}
@@ -329,7 +365,7 @@ function App() {
               onClose={() => setSelectedEvent(null)}
             />
           )}
-          {viewMode === 'middleeast' ? (
+          {viewMode === 'middleeast' && (
             <>
               <ErrorBoundary inline label="Iran War Theater">
                 <IranWarPanel activeSourceIds={activeSources} />
@@ -362,10 +398,39 @@ function App() {
                 <RegionalNewsPanel regionName="Middle East" title="Regional Headlines" activeSourceIds={activeSources} />
               </ErrorBoundary>
             </>
-          ) : (
+          )}
+          {viewMode === 'indopacific' && (
             <>
-              <RegionalNewsPanel regionName="Thailand" title="Thailand Tech Ecosystem" activeSourceIds={activeSources} />
-              <RegionalNewsPanel regionName="DEPA" title="depa & MDES Directives" activeSourceIds={activeSources} />
+              <ErrorBoundary inline label="ASEAN Country News">
+                <CountryNewsPanel
+                  mode="indopacific"
+                  selectedCode={selectedCountryCode}
+                  onSelect={setSelectedCountryCode}
+                />
+              </ErrorBoundary>
+              <ErrorBoundary inline label="Regional Headlines">
+                <RegionalNewsPanel regionName="Thailand" title="ASEAN Tech Ecosystem" activeSourceIds={activeSources} />
+              </ErrorBoundary>
+              <ErrorBoundary inline label="Conflict Analytics">
+                <AcledAnalytics />
+              </ErrorBoundary>
+            </>
+          )}
+          {viewMode === 'thailand' && (
+            <>
+              <ErrorBoundary inline label="Thailand Region News">
+                <CountryNewsPanel
+                  mode="thailand"
+                  selectedCode={selectedCountryCode}
+                  onSelect={setSelectedCountryCode}
+                />
+              </ErrorBoundary>
+              <ErrorBoundary inline label="Thai Tech Ecosystem">
+                <RegionalNewsPanel regionName="Thailand" title="Thailand Tech Ecosystem" activeSourceIds={activeSources} />
+              </ErrorBoundary>
+              <ErrorBoundary inline label="depa Directives">
+                <RegionalNewsPanel regionName="DEPA" title="depa & MDES Directives" activeSourceIds={activeSources} />
+              </ErrorBoundary>
             </>
           )}
         </div>
@@ -384,7 +449,7 @@ function App() {
           <ErrorBoundary inline label="Market Radar">
             <MarketRadarPanel />
           </ErrorBoundary>
-          {viewMode === 'middleeast' ? (
+          {viewMode === 'middleeast' && (
             <>
               {/* Row 1: Economics & Markets */}
               <ErrorBoundary inline label="Oil Price Chart">
@@ -416,10 +481,37 @@ function App() {
                 <SeismicPanel />
               </ErrorBoundary>
             </>
-          ) : (
+          )}
+          {viewMode === 'indopacific' && (
             <>
-              <RegionalNewsPanel regionName="SEA" title="Global Technology News" activeSourceIds={activeSources} />
-              <RegionalNewsPanel regionName="Global" title="Global Macro & Policy" activeSourceIds={activeSources} />
+              <ErrorBoundary inline label="Global Tech News">
+                <RegionalNewsPanel regionName="SEA" title="Global Technology News" activeSourceIds={activeSources} />
+              </ErrorBoundary>
+              <ErrorBoundary inline label="Global Macro">
+                <RegionalNewsPanel regionName="Global" title="Global Macro & Policy" activeSourceIds={activeSources} />
+              </ErrorBoundary>
+              <ErrorBoundary inline label="Media Sentiment">
+                <SentimentChart />
+              </ErrorBoundary>
+              <ErrorBoundary inline label="Seismic Activity">
+                <SeismicPanel />
+              </ErrorBoundary>
+            </>
+          )}
+          {viewMode === 'thailand' && (
+            <>
+              <ErrorBoundary inline label="Thailand Tech">
+                <RegionalNewsPanel regionName="Thailand" title="Thailand Tech Ecosystem" activeSourceIds={activeSources} />
+              </ErrorBoundary>
+              <ErrorBoundary inline label="depa Directives">
+                <RegionalNewsPanel regionName="DEPA" title="depa & MDES" activeSourceIds={activeSources} />
+              </ErrorBoundary>
+              <ErrorBoundary inline label="Media Sentiment">
+                <SentimentChart />
+              </ErrorBoundary>
+              <ErrorBoundary inline label="Seismic Activity">
+                <SeismicPanel />
+              </ErrorBoundary>
             </>
           )}
         </div>

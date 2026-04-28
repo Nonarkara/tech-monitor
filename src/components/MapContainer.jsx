@@ -1,6 +1,7 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useRef, useEffect } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl';
 import maplibregl from 'maplibre-gl';
+import { Copy, Check, AlertTriangle } from 'lucide-react';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { fetchNaturalDisasters } from '../services/nasaEonet';
 import { fetchConflictsAndCrises } from '../services/reliefWeb';
@@ -14,6 +15,7 @@ import { fetchAcledEvents } from '../services/acled';
 import { useLiveResource } from '../hooks/useLiveResource';
 import { EO_TILE_LAYERS, getEoLayerById } from '../services/eoTiles';
 import { fetchSdgLayer } from '../services/undpSdg';
+import { getRegion } from '../data/regions.js';
 
 const STRATEGIC_ZONES = {
     type: 'FeatureCollection',
@@ -304,10 +306,49 @@ const renderSpatialAura = (data, id, color, baseRadius) => {
     );
 };
 
+// Inline MapLibre style spec for ESRI World Imagery — no API key required.
+// Used as the satellite basemap because the MapTiler "hybrid" placeholder key that
+// previously lived here was the literal docs example and rendered blank in production.
+const ESRI_SATELLITE_STYLE = {
+    version: 8,
+    sources: {
+        'esri-world-imagery': {
+            type: 'raster',
+            tiles: [
+                'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+            ],
+            tileSize: 256,
+            maxzoom: 19,
+            attribution: 'Esri, Maxar, Earthstar Geographics, USDA, USGS, AeroGRID, IGN'
+        },
+        'esri-reference': {
+            type: 'raster',
+            tiles: [
+                'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'
+            ],
+            tileSize: 256,
+            maxzoom: 19
+        }
+    },
+    layers: [
+        { id: 'esri-world-imagery-layer', type: 'raster', source: 'esri-world-imagery' },
+        { id: 'esri-reference-layer', type: 'raster', source: 'esri-reference', paint: { 'raster-opacity': 0.85 } }
+    ],
+    glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf'
+};
+
+// Each entry can be a URL string or an inline style object — MapLibre accepts both.
+// Fallback chain (per style): if the primary URL fails (CORS / 5xx / DNS), the
+// onStyleError handler in <Map> will swap to the fallback so the map never goes blank.
 const MAP_STYLES = {
     dark: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
-    satellite: 'https://api.maptiler.com/maps/hybrid/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL',
+    satellite: ESRI_SATELLITE_STYLE,
     voyager: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'
+};
+
+const MAP_STYLE_FALLBACKS = {
+    dark: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+    voyager: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
 };
 
 const MapContainer = ({
@@ -320,9 +361,59 @@ const MapContainer = ({
     copernicusRuntimeSource,
     showCopernicusOverlay,
     showStrategicContext,
-    timeMachineDate
+    timeMachineDate,
+    viewMode = 'middleeast',
+    onRegionDotClick
 }) => {
+    const region = getRegion(viewMode);
+    const regionDots = region.dots;
     const [mapStyle, setMapStyle] = useState('dark');
+    const mapRef = useRef(null);
+    // Track which raster sources have failed (auth / 404 / CORS / 5xx) so the
+    // user sees what is missing instead of a silently-empty map.
+    const [failedSources, setFailedSources] = useState(() => new Set());
+    // Cursor position in lat/lng — updated on mousemove for the readout overlay.
+    const [cursor, setCursor] = useState(null);
+    const [copied, setCopied] = useState(false);
+
+    // Wire MapLibre's runtime error events. react-map-gl's <Map onError> only
+    // surfaces some errors; the underlying map.on('error') is the canonical hook
+    // that fires for tile load failures, source errors, and style errors.
+    useEffect(() => {
+        const map = mapRef.current?.getMap?.();
+        if (!map) return undefined;
+        const handler = (e) => {
+            const sourceId = e?.sourceId || e?.source?.id || e?.error?.sourceId;
+            if (sourceId) {
+                setFailedSources((prev) => {
+                    if (prev.has(sourceId)) return prev;
+                    const next = new Set(prev);
+                    next.add(sourceId);
+                    return next;
+                });
+            }
+        };
+        map.on('error', handler);
+        return () => { map.off('error', handler); };
+    }, [mapStyle]);
+
+    const handleMouseMove = useCallback((event) => {
+        const lng = event?.lngLat?.lng;
+        const lat = event?.lngLat?.lat;
+        if (typeof lat === 'number' && typeof lng === 'number') {
+            setCursor({ lat, lng });
+        }
+    }, []);
+    const handleMouseLeave = useCallback(() => setCursor(null), []);
+    const copyCursor = useCallback(() => {
+        if (!cursor) return;
+        const text = `${cursor.lat.toFixed(5)}, ${cursor.lng.toFixed(5)}`;
+        navigator.clipboard?.writeText(text).then(
+            () => { setCopied(true); setTimeout(() => setCopied(false), 1200); },
+            () => {}
+        );
+    }, [cursor]);
+
     const disasterResource = useLiveResource(useCallback(() => fetchNaturalDisasters(), []), {
         cacheKey: 'map:disasters',
         enabled: activeLayers.includes('disasters'),
@@ -441,6 +532,7 @@ const MapContainer = ({
     return (
         <div className="map-wrapper">
             <Map
+                ref={mapRef}
                 mapLib={maplibregl}
                 minZoom={2.5}
                 maxPitch={60}
@@ -449,6 +541,8 @@ const MapContainer = ({
                 touchZoomRotate
                 {...viewState}
                 onMove={(event) => onMove(event.viewState)}
+                onMouseMove={handleMouseMove}
+                onMouseLeave={handleMouseLeave}
                 style={{ width: '100%', height: '100%' }}
                 mapStyle={MAP_STYLES[mapStyle] || MAP_STYLES.dark}
             >
@@ -914,6 +1008,39 @@ const MapContainer = ({
                 {activeLayers.includes('weather') && renderMarkers(weatherData, 'marker-weather')}
                 {activeLayers.includes('economy') && renderMarkers(economyData, 'marker-economy')}
                 {activeLayers.includes('aqi') && renderMarkers(aqiData, 'marker-aqi')}
+
+                {/* Region dots (ASEAN capitals or Thai provinces). Rendered as
+                    interactive markers so click → flyTo + per-country news. */}
+                {regionDots?.features?.length > 0 && regionDots.features.map((f) => {
+                    const [lng, lat] = f.geometry.coordinates;
+                    return (
+                        <Marker
+                            key={f.properties.id}
+                            longitude={lng}
+                            latitude={lat}
+                            anchor="center"
+                            onClick={(event) => {
+                                event.originalEvent.stopPropagation();
+                                onRegionDotClick?.({ ...f.properties, longitude: lng, latitude: lat });
+                            }}
+                        >
+                            <div
+                                style={{
+                                    width: 14,
+                                    height: 14,
+                                    background: f.properties.color || '#38bdf8',
+                                    border: '1.5px solid rgba(255,255,255,0.85)',
+                                    boxShadow: `0 0 12px ${f.properties.color || '#38bdf8'}cc`,
+                                    cursor: 'pointer',
+                                    transition: 'transform 0.15s'
+                                }}
+                                title={f.properties.country || f.properties.region}
+                                onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.4)'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+                            />
+                        </Marker>
+                    );
+                })}
             </Map>
 
             <div className="map-vignette" aria-hidden="true" />
@@ -932,6 +1059,76 @@ const MapContainer = ({
                     </button>
                 ))}
             </div>
+
+            {/* Cursor lat/lng readout — bottom-left of map. Mono, hairline border, copy button. */}
+            {cursor && (
+                <div
+                    style={{
+                        position: 'absolute',
+                        bottom: 12,
+                        left: 12,
+                        zIndex: 5,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '4px 8px',
+                        background: 'rgba(5, 14, 32, 0.78)',
+                        border: '1px solid rgba(56, 189, 248, 0.28)',
+                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                        fontSize: '0.7rem',
+                        color: 'rgba(219, 234, 254, 0.92)',
+                        letterSpacing: '0.4px',
+                        pointerEvents: 'auto',
+                    }}
+                    aria-live="polite"
+                >
+                    <span>{cursor.lat.toFixed(5)}, {cursor.lng.toFixed(5)}</span>
+                    <button
+                        onClick={copyCursor}
+                        title="Copy lat,lng to clipboard"
+                        aria-label="Copy lat,lng to clipboard"
+                        style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: copied ? '#4ade80' : 'rgba(56, 189, 248, 0.85)',
+                            cursor: 'pointer',
+                            padding: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                        }}
+                    >
+                        {copied ? <Check size={11} /> : <Copy size={11} />}
+                    </button>
+                </div>
+            )}
+
+            {/* Tile-health badge — only renders when one or more raster sources have failed.
+                Worst-case visibility per Dr Non / §12 (Stoic transparency). */}
+            {failedSources.size > 0 && (
+                <div
+                    style={{
+                        position: 'absolute',
+                        bottom: 12,
+                        right: 12,
+                        zIndex: 5,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '4px 8px',
+                        background: 'rgba(5, 14, 32, 0.78)',
+                        border: '1px solid rgba(212, 168, 67, 0.45)',
+                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                        fontSize: '0.65rem',
+                        color: 'rgba(252, 211, 77, 0.92)',
+                        letterSpacing: '0.5px',
+                        textTransform: 'uppercase',
+                    }}
+                    title={`Failed sources: ${[...failedSources].join(', ')}`}
+                >
+                    <AlertTriangle size={11} />
+                    <span>{failedSources.size} layer{failedSources.size === 1 ? '' : 's'} unavailable</span>
+                </div>
+            )}
 
             {showStrategicContext && (
                 <div className="map-legend">
