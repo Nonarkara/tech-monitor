@@ -33,6 +33,7 @@ export async function trackVisitor() {
 
     const payload = {
       dashboard: 'GPD',
+      hostname: location.hostname,        // conflict.nonarkara.org now (was nonarkara.github.io)
       page: location.href,
       ...geo,
       userAgent: navigator.userAgent,
